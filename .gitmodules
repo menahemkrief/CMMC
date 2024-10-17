@@ -1,0 +1,6 @@
+[submodule "src/units"]
+	path = src/units
+	url = https://github.com/menahemkrief/units.git
+[submodule "src/planck_integral"]
+	path = src/planck_integral
+	url = https://github.com/menahemkrief/planck_integral.git
