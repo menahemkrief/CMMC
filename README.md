@@ -6,6 +6,7 @@ The integration of the Compton kernel on the energy bins is perofmed using a Mon
 The Compton matrix $ \tau_{gg'} $ represents the total macroscopic cross-section, which integrated over the scattering angle, for an incoming photon in group $g$ to scatter to an energy group $g'$. The Compton matrix is a function 
 
 The coupled radiation-matter equations with Compton scattering (including induced scattering) reads:
+
 $$ \frac{d E_{g}}{dt}=ck_{g,P}\left(b_{g}aT^{4}-E_{g}\right)+\sum_{g'}\tau_{g'g}\frac{\nu_{g}}{\nu_{g'}}\left(1+n_{g}\right)E_{g'}-\sum_{g'}\tau_{gg'}\left(1+n_{g'}\right)E_{g} $$
 
 $$ \frac{d u_{m}}{d t}=-\sum_{g}ck_{g,P}\left(b_{g}aT^{4}-E_{g}\right)-\sum_{gg'}\tau_{g'g}\frac{\nu_{g}}{\nu_{g'}}\left(1+n_{g}\right)E_{g'}+\sum_{gg'}\tau_{gg'}\left(1+n_{g'}\right)E_{g} $$
