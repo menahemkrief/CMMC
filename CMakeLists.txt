@@ -6,6 +6,12 @@ file(GLOB SRC_NO_PYBIND "src/*.cpp" "main.cpp")
 
 find_package(pybind11 REQUIRED)
 
+set(COMPILATION_FLAGS "-Wall -Wextra -Werror -Wshadow -fno-common -fstack-protector-all -rdynamic -Wdouble-promotion -fstrict-aliasing")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILATION_FLAGS}") 
+set(CMAKE_CXX_FLAGS_DEBUG "${COMPILATION_FLAGS} -DDEBUG -O0 -g3 -gdwarf-3 -D_GLIBCXX_DEBUG") 
+set(CMAKE_CXX_FLAGS_RELEASE "${COMPILATION_FLAGS} -DNDEBUG -O2")
+
 
 message("pybind11 directory: " ${pybind11_DIR})
 

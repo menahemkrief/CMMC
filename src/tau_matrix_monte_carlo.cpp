@@ -14,14 +14,15 @@ tau_matrix_monte_carlo_engine::tau_matrix_monte_carlo_engine(Vector const energy
                                                              Vector const energy_groups_boundries_, 
                                                              std::size_t const num_of_samples_, 
                                                              bool const force_detailed_balance_,
-                                                             std::size_t const seed) :
+                                                             int const seed_) :
                             energy_groups_center(energy_groups_center_),
                             energy_groups_boundries(energy_groups_boundries_),
                             num_energy_groups(energy_groups_center.size()),
                             S_temp(num_energy_groups, Vector(num_energy_groups, signaling_NaN)),
                             num_of_samples(num_of_samples_), 
+                            seed(seed_ >= 0 ? seed_ : static_cast<unsigned int>(std::time(0))),
                             sample_uniform_01(
-                                boost::random::mt19937(static_cast<unsigned int>(seed != 0 ? seed : std::time(0))),
+                                boost::random::mt19937(seed),
                                 boost::random::uniform_01<>()
                             ),
                             force_detailed_balance(force_detailed_balance_),
@@ -29,7 +30,9 @@ tau_matrix_monte_carlo_engine::tau_matrix_monte_carlo_engine(Vector const energy
                             S_log_tables(),
                             dSdUm_tables(),
                             n_eq(num_energy_groups, signaling_NaN),
-                            B(num_energy_groups, signaling_NaN) {}
+                            B(num_energy_groups, signaling_NaN) {
+    printf("Generating a tau_matrix_monte_carlo_engine object... seed=%d\n", seed);
+}
 
 double tau_matrix_monte_carlo_engine::sample_gamma(double const temperature){
     
@@ -72,7 +75,7 @@ Matrix tau_matrix_monte_carlo_engine::generate_S_matrix(double const temperature
     for(std::size_t sample_i=0; sample_i < num_of_samples; ++sample_i){
 
         if((sample_i+1) % (num_of_samples/4) == 0 or sample_i==0){
-            printf("Compton matrix T=%gkev sample %d/%d [%d %]\n", temperature/units::kev_kelvin, sample_i+1, num_of_samples, int(100*double(sample_i+1.)/double(num_of_samples)));
+            printf("Compton matrix T=%gkev sample %ld/%ld [%d%%]\n", temperature/units::kev_kelvin, sample_i+1, num_of_samples, int(100*double(sample_i+1.)/double(num_of_samples)));
         }
 
 
@@ -231,7 +234,7 @@ void tau_matrix_monte_carlo_engine::generate_tau_matrix(double const temperature
     auto const tmp_iterator = std::lower_bound(temperature_grid.cbegin(), temperature_grid.cend(), temperature);
     auto const tmp_i = std::distance(temperature_grid.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
 
-    if(tmp_i+1 == temperature_grid.size()){
+    if(tmp_i+1 == static_cast<int>(temperature_grid.size())){
         std::cout << "temperature given to generate_tau_matrix is too high" << std::endl;
         exit(1);
     }
@@ -253,8 +256,6 @@ void tau_matrix_monte_carlo_engine::generate_tau_matrix(double const temperature
         }
     }
 
-    double const k_bT = units::k_boltz*temperature;
-
     using boost::math::pow;
     double constexpr fac = pow<3>(units::clight) / (8.0*M_PI*units::planck_constant);
     for(std::size_t g=0; g < num_energy_groups; ++g){
@@ -267,7 +268,6 @@ void tau_matrix_monte_carlo_engine::generate_tau_matrix(double const temperature
         B[g] = Bg;
     }
 
-    double const Nelectron = density*units::Navogadro/A*Z;
     double const x = (temperature-temperature_grid[tmp_i])/(temperature_grid[tmp_i+1]-temperature_grid[tmp_i]);
     for(std::size_t i = 0; i < num_energy_groups; ++i){
         double const E_i = energy_groups_center[i];
@@ -284,8 +284,7 @@ void tau_matrix_monte_carlo_engine::generate_tau_matrix(double const temperature
             double const E_j = energy_groups_center[j];
             // double const w_i = energy_groups_boundries[i+1] - energy_groups_boundries[i];
             // double const w_j = energy_groups_boundries[j+1] - energy_groups_boundries[j];
-
-            // double const detailed_balance_factor = (E_i*E_i*w_i)/(E_j*E_j*w_j)*std::exp((E_j-E_i)/k_bT);
+            // double const detailed_balance_factor = (E_i*E_i*w_i)/(E_j*E_j*w_j)*std::exp((E_j-E_i)/(units::k_boltz*temperature));
 
             double const detailed_balance_factor = (1.0+n_eq[j])*B[i]*E_j / ((1.0+n_eq[i])*B[j]*E_i);
 
@@ -293,7 +292,7 @@ void tau_matrix_monte_carlo_engine::generate_tau_matrix(double const temperature
         }
     }
 
-
+    double const Nelectron = density*units::Navogadro/A*Z;
     dtau_dUm = dSdUm_tables[tmp_i];
     for(std::size_t i=0; i<num_energy_groups; ++i){
         for(std::size_t j=0; j<num_energy_groups; ++j){
@@ -302,7 +301,6 @@ void tau_matrix_monte_carlo_engine::generate_tau_matrix(double const temperature
         }
     }
 }
-
 
 Matrix tau_matrix_monte_carlo_engine::return_tau_matrix(double const temperature, double const density, double const A, double const Z){
     Matrix tau(num_energy_groups, Vector(num_energy_groups, 0.0));

@@ -12,13 +12,13 @@ namespace tau_matrix {
                             std::vector<double> const,
                             std::size_t const,
                             bool const,
-                            std::size_t const>(),
+                            int const>(),
                             pybind11::kw_only(),
                             "energy_groups_center"_a,
                             "energy_groups_boundaries"_a,
                             "num_of_samples"_a,
                             "force_detailed_balance"_a,
-                            "seed"_a=0)
+                            "seed"_a=-1)
         .def("sample_gamma",      &tau_matrix_monte_carlo_engine::sample_gamma,      pybind11::kw_only(), "temperature"_a)
         .def("generate_S_matrix", &tau_matrix_monte_carlo_engine::generate_S_matrix, pybind11::kw_only(), "temperature"_a, "log_grid"_a=false)
         .def("generate_tables",   &tau_matrix_monte_carlo_engine::generate_tables,   pybind11::kw_only(), "temperature_grid"_a)
