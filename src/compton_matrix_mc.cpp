@@ -2,7 +2,7 @@
 #include <ctime>
 #include <cmath>
 
-#include "cmmc.hpp"
+#include "compton_matrix_mc.hpp"
 #include "units/units.hpp"
 #include "planck_integral/planck_integral.hpp"
 

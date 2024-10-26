@@ -1,4 +1,4 @@
-#include "src/cmmc.hpp"
+#include "src/compton_matrix_mc.hpp"
 #include "src/units/units.hpp"
 
 int main(){

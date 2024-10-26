@@ -1,5 +1,5 @@
-#ifndef __CMMC__
-#define __CMMC__
+#ifndef __COMPTON_MATRIX_MC__
+#define __COMPTON_MATRIX_MC__
 
 #include <boost/random.hpp>
 

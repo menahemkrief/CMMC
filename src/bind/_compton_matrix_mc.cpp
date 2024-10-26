@@ -1,9 +1,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "../cmmc.hpp"
+#include "../compton_matrix_mc.hpp"
 
-void bind_cmmc(pybind11::module& m){
+void bind_compton_matrix_mc(pybind11::module& m){
     using namespace pybind11::literals;
 
     pybind11::class_<ComptonMatrixMC>(m, "ComptonMatrixMC")
@@ -25,8 +25,8 @@ void bind_cmmc(pybind11::module& m){
     ;
 }
 
-PYBIND11_MODULE(_cmmc, m){
-    m.doc() = "tau matrix monte carlo c++ module";
+PYBIND11_MODULE(_compton_matrix_mc, m){
+    m.doc() = "Compton Matrix Monte Carlo c++ module";
 
-    bind_cmmc(m);
+    bind_compton_matrix_mc(m);
 }
