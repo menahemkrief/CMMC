@@ -2,7 +2,7 @@
 #include <ctime>
 #include <cmath>
 
-#include "tau_matrix_monte_carlo.hpp"
+#include "cmmc.hpp"
 #include "units/units.hpp"
 #include "planck_integral/planck_integral.hpp"
 
@@ -10,14 +10,14 @@
 
 static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_NaN();
 
-tau_matrix_monte_carlo_engine::tau_matrix_monte_carlo_engine(Vector const energy_groups_center_, 
-                                                             Vector const energy_groups_boundries_, 
-                                                             std::size_t const num_of_samples_, 
-                                                             bool const force_detailed_balance_,
-                                                             int const seed_) :
-                            energy_groups_center(energy_groups_center_),
+ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_, 
+                                 Vector const energy_groups_boundries_, 
+                                 std::size_t const num_of_samples_, 
+                                 bool const force_detailed_balance_,
+                                 int const seed_) :
+                            energy_groups_centers(energy_groups_centers_),
                             energy_groups_boundries(energy_groups_boundries_),
-                            num_energy_groups(energy_groups_center.size()),
+                            num_energy_groups(energy_groups_centers.size()),
                             num_of_samples(num_of_samples_), 
                             seed(seed_ >= 0 ? seed_ : static_cast<unsigned int>(std::time(0))),
                             sample_uniform_01(
@@ -31,10 +31,14 @@ tau_matrix_monte_carlo_engine::tau_matrix_monte_carlo_engine(Vector const energy
                             S_temp(num_energy_groups, Vector(num_energy_groups, signaling_NaN)),
                             n_eq(num_energy_groups, signaling_NaN),
                             B(num_energy_groups, signaling_NaN) {
-    printf("Generating a tau_matrix_monte_carlo_engine object... seed=%d\n", seed);
+    printf("Generating a ComptonMatrixMC object... seed=%d\n", seed);
+    if(num_energy_groups + 1 != energy_groups_boundries.size()){
+        printf("fatal - inconsistent number of energy group boundaries and centers\n");
+        exit(1);
+    }
 }
 
-double tau_matrix_monte_carlo_engine::sample_gamma(double const temperature){
+double ComptonMatrixMC::sample_gamma(double const temperature){
     
     double const theta = units::k_boltz * temperature / units::me_c2;
     double const sum_1_bt = 1.0 + 1.0 / theta;
@@ -60,7 +64,7 @@ double tau_matrix_monte_carlo_engine::sample_gamma(double const temperature){
     return 1.0 - theta*std::log(r1);
 }
 
-Matrix tau_matrix_monte_carlo_engine::generate_S_matrix(double const temperature){
+Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
 
     for(std::size_t i=0; i < num_energy_groups; ++i){
         for(std::size_t j=0; j < num_energy_groups; ++j){
@@ -136,7 +140,7 @@ Matrix tau_matrix_monte_carlo_engine::generate_S_matrix(double const temperature
             auto g = std::distance(energy_groups_boundries.begin(), g_iterator)-1; // gives the index of the energy group
 
             g = std::max(0L, g);
-            g = std::min(static_cast<long>(energy_groups_center.size())-1, g);
+            g = std::min(static_cast<long>(energy_groups_centers.size())-1, g);
 
             // step 8d: calcualte the cross section contribution
             double const sigma = 0.75 * D0/gamma * A*A*(A + 1./A - sin_p_tag*sin_p_tag)*w_E0*beta;
@@ -160,7 +164,7 @@ Matrix tau_matrix_monte_carlo_engine::generate_S_matrix(double const temperature
         }
     }
 
-    if(force_detailed_balance) {
+    if(force_detailed_balance){
         double constexpr thresh = units::sigma_thomson*std::numeric_limits<double>::epsilon()*1e3;
 
         using boost::math::pow;
@@ -168,7 +172,7 @@ Matrix tau_matrix_monte_carlo_engine::generate_S_matrix(double const temperature
         for(std::size_t g=0; g < num_energy_groups; ++g){
             double const Bg = planck_integral::planck_energy_density_group_integral(energy_groups_boundries[g], energy_groups_boundries[g+1], temperature);
 
-            double const nu = energy_groups_center[g] / units::planck_constant;
+            double const nu = energy_groups_centers[g] / units::planck_constant;
             double const dnu = (energy_groups_boundries[g+1] - energy_groups_boundries[g])/units::planck_constant;
 
             n_eq[g] = fac*Bg/(pow<3>(nu)*dnu);
@@ -176,12 +180,12 @@ Matrix tau_matrix_monte_carlo_engine::generate_S_matrix(double const temperature
         }
 
         for(std::size_t g=0; g < num_energy_groups; ++g){
-            double const E_g = energy_groups_center[g];
+            double const E_g = energy_groups_centers[g];
             
             for(std::size_t gt=g+1; gt<num_energy_groups; ++gt){
                 if(S_temp[gt][g] < thresh and S_temp[g][gt] < thresh) continue;
                 
-                double const E_gt = energy_groups_center[gt];
+                double const E_gt = energy_groups_centers[gt];
 
                 double const detailed_balance_factor = (1.0+n_eq[gt])*B[g]*E_gt / ((1.0+n_eq[g])*B[gt]*E_g);
                 
@@ -198,13 +202,28 @@ Matrix tau_matrix_monte_carlo_engine::generate_S_matrix(double const temperature
     return S_temp;
 }
 
-void tau_matrix_monte_carlo_engine::generate_tables(std::vector<double> const& tmp_grid){
-    temperature_grid = tmp_grid;
+void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
+
+    if(temperature_grid_.size()<2){
+        printf("Compton temperature grid has less than two temperature points - %ld\n", temperature_grid_.size());
+        exit(1);
+    }
+    printf("setting Compton matrix tables for %ld temperatures (in kev):\n", temperature_grid_.size());
+    for(std::size_t i=0; i<temperature_grid_.size(); ++i){
+        printf("%g ", temperature_grid_[i]/units::kev_kelvin);
+        if(i>0 and temperature_grid_[i]<=temperature_grid_[i-1]){
+            printf("fatal - Compton temperature grid is not monotonic\n");
+            exit(1);
+        }
+    }
+    printf("\n");
+
+    temperature_grid = temperature_grid_;
     S_log_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
     dSdUm_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
     
     for(std::size_t i=0; i < temperature_grid.size(); ++i){
-        S_log_tables[i] = generate_S_matrix(temperature_grid[i]);
+        S_log_tables[i] = calculate_S_matrix(temperature_grid[i]);
         for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
             for(std::size_t g=0; g < num_energy_groups; ++g){
                 S_log_tables[i][g0][g] = std::log(S_log_tables[i][g0][g]);
@@ -228,28 +247,28 @@ void tau_matrix_monte_carlo_engine::generate_tables(std::vector<double> const& t
     }
 }
 
-void tau_matrix_monte_carlo_engine::generate_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau, Matrix& dtau_dUm){
+void ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau, Matrix& dtau_dUm){
     auto const tmp_iterator = std::lower_bound(temperature_grid.cbegin(), temperature_grid.cend(), temperature);
     auto const tmp_i = std::distance(temperature_grid.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
 
     if(tmp_i+1 == static_cast<int>(temperature_grid.size())){
-        std::cout << "temperature given to generate_tau_matrix is too high" << std::endl;
+        printf("temperature T=%gkev given to get_tau_matrix is too high (maximal table temperature=%gkev)\n", temperature/units::kev_kelvin, temperature_grid.back()/units::kev_kelvin);
         exit(1);
     }
 
     if(tmp_i == -1){
-        std::cout << "temperature given to generate_tau_matrix is too low" << std::endl;
+        printf("temperature T=%gkev given to get_tau_matrix is too low (minimal table temperature=%gkev)\n", temperature/units::kev_kelvin, temperature_grid[0]/units::kev_kelvin);
         exit(1);
     }
 
     if(tau.size() != num_energy_groups or dtau_dUm.size() != num_energy_groups){
-        std::cout << "tau or dtau_dUm given to generate_tau_matrix has less then `num_energy_groups` rows" << std::endl;
+        std::cout << "tau or dtau_dUm given to get_tau_matrix has less then `num_energy_groups` rows" << std::endl;
         exit(1);
     }
 
     for(std::size_t g=0; g < num_energy_groups; ++g){
         if(tau[g].size() != num_energy_groups or dtau_dUm[g].size() != num_energy_groups){
-            std::cout << "tau or dtau_dUm given to generate_tau_matrix has less then `num_energy_groups` columns" << std::endl;
+            std::cout << "tau or dtau_dUm given to get_tau_matrix has less then `num_energy_groups` columns" << std::endl;
             exit(1);
         }
     }
@@ -259,7 +278,7 @@ void tau_matrix_monte_carlo_engine::generate_tau_matrix(double const temperature
     for(std::size_t g=0; g < num_energy_groups; ++g){
         double const Bg = planck_integral::planck_energy_density_group_integral(energy_groups_boundries[g], energy_groups_boundries[g+1], temperature);
 
-        double const nu = energy_groups_center[g] / units::planck_constant;
+        double const nu = energy_groups_centers[g] / units::planck_constant;
         double const dnu = (energy_groups_boundries[g+1] - energy_groups_boundries[g])/units::planck_constant;
 
         n_eq[g] = fac*Bg/(pow<3>(nu)*dnu);
@@ -268,7 +287,7 @@ void tau_matrix_monte_carlo_engine::generate_tau_matrix(double const temperature
 
     double const x = (temperature-temperature_grid[tmp_i])/(temperature_grid[tmp_i+1]-temperature_grid[tmp_i]);
     for(std::size_t i = 0; i < num_energy_groups; ++i){
-        double const E_i = energy_groups_center[i];
+        double const E_i = energy_groups_centers[i];
 
         for(std::size_t j=i; j < num_energy_groups; ++j){
             // double const interp_value_log = S_log_tables[tmp_i][i][j]*(1. - x) + S_log_tables[tmp_i+1][i][j]*x;
@@ -279,7 +298,7 @@ void tau_matrix_monte_carlo_engine::generate_tau_matrix(double const temperature
 
             if(i == j) continue;
 
-            double const E_j = energy_groups_center[j];
+            double const E_j = energy_groups_centers[j];
             // double const w_i = energy_groups_boundries[i+1] - energy_groups_boundries[i];
             // double const w_j = energy_groups_boundries[j+1] - energy_groups_boundries[j];
             // double const detailed_balance_factor = (E_i*E_i*w_i)/(E_j*E_j*w_j)*std::exp((E_j-E_i)/(units::k_boltz*temperature));
@@ -300,11 +319,11 @@ void tau_matrix_monte_carlo_engine::generate_tau_matrix(double const temperature
     }
 }
 
-Matrix tau_matrix_monte_carlo_engine::return_tau_matrix(double const temperature, double const density, double const A, double const Z){
+Matrix ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z){
     Matrix tau(num_energy_groups, Vector(num_energy_groups, 0.0));
     Matrix dtau(num_energy_groups, Vector(num_energy_groups, 0.0));
 
-    generate_tau_matrix(temperature, density, A, Z, tau, dtau);
+    get_tau_matrix(temperature, density, A, Z, tau, dtau);
 
     return tau;
 }
