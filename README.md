@@ -21,12 +21,14 @@ where:
 * $k_{g}$ is the absorption macroscopic cross section (a.k.a. opacity) in group $g$, with units of inverse length. It is usually defined as the Planck mean of the absorption opacity in the group.
 * $b_{g}$ is the fraction of the Planck emission spectra in group $g$:
   
- $$ b_{g}=\frac{15}{\pi^{4}}\int_{h\nu_{g-\frac{1}{2}}/k_{B}T}^{h\nu_{g+\frac{1}{2}}/k_{B}T}\frac{x^{3}}{e^{x}-1}dx $$
+$$ b_{g}=\frac{15}{\pi^{4}}\int_{h\nu_{g-\frac{1}{2}}/k_{B}T}^{h\nu_{g+\frac{1}{2}}/k_{B}T}\frac{x^{3}}{e^{x}-1}dx $$
+
  where $h$ is the Planck constant. Therefore, when $\nu_{\frac{1}{2}}\ll k_{{B}}T$, $\nu_{G+\frac{1}{2}}\gg k_{{B}}T$, we have $\sum_{g=1}^{G} b_{g}=1$.
 
 
 * $n_{g}$ is the average photon number in group $g$:
   
-  $$ n_{g}=\frac{c^{3}E_{g}}{8\pi h\nu_{g}^{3}\Delta\nu_{g}} $$
+$$ n_{g}=\frac{c^{3}E_{g}}{8\pi h\nu_{g}^{3}\Delta\nu_{g}} $$
+
   where $\Delta\nu_{g}=\nu_{g+ \frac{1}{2}}-\nu_{g- \frac{1}{2}}$.
 
