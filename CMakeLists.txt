@@ -19,9 +19,9 @@ foreach(file IN LISTS SRC_CPP)
     message(${file})
 endforeach()
 
-pybind11_add_module(_cmmc ${SRC_CPP})
-target_link_libraries(_cmmc PRIVATE pybind11::module)
-set_target_properties(_cmmc PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}" SUFFIX "${PYTHON_MODULE_EXTENSION}" LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/../cpp_modules")
+pybind11_add_module(_compton_matrix_mc ${SRC_CPP})
+target_link_libraries(_compton_matrix_mc PRIVATE pybind11::module)
+set_target_properties(_compton_matrix_mc PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}" SUFFIX "${PYTHON_MODULE_EXTENSION}" LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/../cpp_modules")
 
 pybind11_add_module(_units ${SRC_CPP})
 target_link_libraries(_units PRIVATE pybind11::module)
