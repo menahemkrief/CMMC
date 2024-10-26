@@ -20,13 +20,12 @@ namespace tau_matrix {
                             "force_detailed_balance"_a,
                             "seed"_a=-1)
         .def("sample_gamma",      &tau_matrix_monte_carlo_engine::sample_gamma,      pybind11::kw_only(), "temperature"_a)
-        .def("generate_S_matrix", &tau_matrix_monte_carlo_engine::generate_S_matrix, pybind11::kw_only(), "temperature"_a, "log_grid"_a=false)
+        .def("generate_S_matrix", &tau_matrix_monte_carlo_engine::generate_S_matrix, pybind11::kw_only(), "temperature"_a)
         .def("generate_tables",   &tau_matrix_monte_carlo_engine::generate_tables,   pybind11::kw_only(), "temperature_grid"_a)
         .def("return_tau_matrix", &tau_matrix_monte_carlo_engine::return_tau_matrix, pybind11::kw_only(), "temperature"_a, "density"_a, "A"_a, "Z"_a)
         ;
     }
 }
-
 
 PYBIND11_MODULE(_tau_matrix_monte_carlo, m){
     m.doc() = "tau matrix monte carlo c++ module";

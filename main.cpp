@@ -35,7 +35,7 @@ int main(){
 
     // double const T = 2.0*units::me_c2 / units::k_boltz;
     double constexpr T = 10.0*units::kev_kelvin;
-    Matrix m = tau_engine.generate_S_matrix(T, false);
+    Matrix m = tau_engine.generate_S_matrix(T);
 
     Vector tmp_grid = {1e-2, 1., 3., 4., 6., 10., 20., 30., 40., 60., 80., 100.};
     for(auto& temp : tmp_grid){

@@ -15,7 +15,7 @@ class tau_matrix_monte_carlo_engine {
                                       bool const force_detailed_balance_,
                                       int const seed_=-1);
 
-        Matrix generate_S_matrix(double const temperature, bool const log_grid);
+        Matrix generate_S_matrix(double const temperature);
         
         void generate_tables(std::vector<double> const& tmp_grid);
         
@@ -33,8 +33,6 @@ class tau_matrix_monte_carlo_engine {
         Vector const energy_groups_boundries;
         std::size_t const num_energy_groups;
         
-        Matrix S_temp;
-
         std::size_t const num_of_samples;
         unsigned int const seed;
         boost::random::variate_generator<boost::random::mt19937, boost::random::uniform_01<>> sample_uniform_01;
@@ -46,7 +44,8 @@ class tau_matrix_monte_carlo_engine {
         std::vector<Matrix> S_log_tables;
         std::vector<Matrix> dSdUm_tables;
 
-        // auxiliary ararys
+        // auxiliary arrays
+        Matrix S_temp;
         std::vector<double> n_eq;
         std::vector<double> B;
 };

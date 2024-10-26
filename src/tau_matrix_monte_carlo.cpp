@@ -18,7 +18,6 @@ tau_matrix_monte_carlo_engine::tau_matrix_monte_carlo_engine(Vector const energy
                             energy_groups_center(energy_groups_center_),
                             energy_groups_boundries(energy_groups_boundries_),
                             num_energy_groups(energy_groups_center.size()),
-                            S_temp(num_energy_groups, Vector(num_energy_groups, signaling_NaN)),
                             num_of_samples(num_of_samples_), 
                             seed(seed_ >= 0 ? seed_ : static_cast<unsigned int>(std::time(0))),
                             sample_uniform_01(
@@ -29,6 +28,7 @@ tau_matrix_monte_carlo_engine::tau_matrix_monte_carlo_engine(Vector const energy
                             temperature_grid(),
                             S_log_tables(),
                             dSdUm_tables(),
+                            S_temp(num_energy_groups, Vector(num_energy_groups, signaling_NaN)),
                             n_eq(num_energy_groups, signaling_NaN),
                             B(num_energy_groups, signaling_NaN) {
     printf("Generating a tau_matrix_monte_carlo_engine object... seed=%d\n", seed);
@@ -60,7 +60,7 @@ double tau_matrix_monte_carlo_engine::sample_gamma(double const temperature){
     return 1.0 - theta*std::log(r1);
 }
 
-Matrix tau_matrix_monte_carlo_engine::generate_S_matrix(double const temperature, bool const log_grid){
+Matrix tau_matrix_monte_carlo_engine::generate_S_matrix(double const temperature){
 
     for(std::size_t i=0; i < num_energy_groups; ++i){
         for(std::size_t j=0; j < num_energy_groups; ++j){
@@ -195,13 +195,6 @@ Matrix tau_matrix_monte_carlo_engine::generate_S_matrix(double const temperature
         }
     }
 
-    if(log_grid){
-        for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
-            for(std::size_t g=0; g < num_energy_groups; ++g){
-                S_temp[g0][g] = std::log(S_temp[g0][g]);
-            }
-        }
-    }
     return S_temp;
 }
 
@@ -211,7 +204,12 @@ void tau_matrix_monte_carlo_engine::generate_tables(std::vector<double> const& t
     dSdUm_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
     
     for(std::size_t i=0; i < temperature_grid.size(); ++i){
-        S_log_tables[i] = generate_S_matrix(temperature_grid[i], true);
+        S_log_tables[i] = generate_S_matrix(temperature_grid[i]);
+        for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
+            for(std::size_t g=0; g < num_energy_groups; ++g){
+                S_log_tables[i][g0][g] = std::log(S_log_tables[i][g0][g]);
+            }
+        }
     }
 
     for(std::size_t i=0; i+1 < temperature_grid.size(); ++i){
