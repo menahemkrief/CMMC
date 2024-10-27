@@ -32,3 +32,15 @@ $$ n_{g}=\frac{c^{3}E_{g}}{8\pi h\nu_{g}^{3}\Delta\nu_{g}} $$
 
   where $\Delta\nu_{g}=\nu_{g+ \frac{1}{2}}-\nu_{g- \frac{1}{2}}$.
 
+## Compilation
+Compile the project at a `build` directory:
+```shell
+mkdir build
+cd build
+cmake ..
+make -j
+```
+
+This compiles the `python` modules under the directory `/cpp_modules` as well as the `main` (in `/build/main.out`).
+
+The `python` modules can be imported as shown in several examples given in `/examples`.
