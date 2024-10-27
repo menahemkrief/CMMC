@@ -64,6 +64,20 @@ double ComptonMatrixMC::sample_gamma(double const temperature){
     return 1.0 - theta*std::log(r1);
 }
 
+void ComptonMatrixMC::set_Bg_ng(double const temperature){
+    using boost::math::pow;
+    double constexpr fac = pow<3>(units::clight) / (8.0*M_PI*units::planck_constant);
+    for(std::size_t g=0; g < num_energy_groups; ++g){
+        double const Bg = planck_integral::planck_energy_density_group_integral(energy_groups_boundries[g], energy_groups_boundries[g+1], temperature);
+
+        double const nu = energy_groups_centers[g] / units::planck_constant;
+        double const dnu = (energy_groups_boundries[g+1] - energy_groups_boundries[g])/units::planck_constant;
+
+        n_eq[g] = fac*Bg/(pow<3>(nu)*dnu);
+        B[g] = Bg;
+    }
+}
+
 Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
 
     for(std::size_t i=0; i < num_energy_groups; ++i){
@@ -165,19 +179,8 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
     }
 
     if(force_detailed_balance){
+        set_Bg_ng(temperature);
         double constexpr thresh = units::sigma_thomson*std::numeric_limits<double>::epsilon()*1e3;
-
-        using boost::math::pow;
-        double constexpr fac = pow<3>(units::clight) / (8.0*M_PI*units::planck_constant);
-        for(std::size_t g=0; g < num_energy_groups; ++g){
-            double const Bg = planck_integral::planck_energy_density_group_integral(energy_groups_boundries[g], energy_groups_boundries[g+1], temperature);
-
-            double const nu = energy_groups_centers[g] / units::planck_constant;
-            double const dnu = (energy_groups_boundries[g+1] - energy_groups_boundries[g])/units::planck_constant;
-
-            n_eq[g] = fac*Bg/(pow<3>(nu)*dnu);
-            B[g] = Bg;
-        }
 
         for(std::size_t g=0; g < num_energy_groups; ++g){
             double const E_g = energy_groups_centers[g];
@@ -186,7 +189,6 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
                 if(S_temp[gt][g] < thresh and S_temp[g][gt] < thresh) continue;
                 
                 double const E_gt = energy_groups_centers[gt];
-
                 double const detailed_balance_factor = (1.0+n_eq[gt])*B[g]*E_gt / ((1.0+n_eq[g])*B[gt]*E_g);
                 
                 if(S_temp[gt][g] < S_temp[g][gt]){
@@ -273,39 +275,25 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
         }
     }
 
-    using boost::math::pow;
-    double constexpr fac = pow<3>(units::clight) / (8.0*M_PI*units::planck_constant);
-    for(std::size_t g=0; g < num_energy_groups; ++g){
-        double const Bg = planck_integral::planck_energy_density_group_integral(energy_groups_boundries[g], energy_groups_boundries[g+1], temperature);
-
-        double const nu = energy_groups_centers[g] / units::planck_constant;
-        double const dnu = (energy_groups_boundries[g+1] - energy_groups_boundries[g])/units::planck_constant;
-
-        n_eq[g] = fac*Bg/(pow<3>(nu)*dnu);
-        B[g] = Bg;
-    }
+    if(force_detailed_balance) set_Bg_ng(temperature);
 
     double const x = (temperature-temperature_grid[tmp_i])/(temperature_grid[tmp_i+1]-temperature_grid[tmp_i]);
     for(std::size_t i = 0; i < num_energy_groups; ++i){
         double const E_i = energy_groups_centers[i];
 
         for(std::size_t j=i; j < num_energy_groups; ++j){
-            // double const interp_value_log = S_log_tables[tmp_i][i][j]*(1. - x) + S_log_tables[tmp_i+1][i][j]*x;
-            // tau_temp[i][j] = std::exp(interp_value_log);
-            
-            double const interp_value = std::exp(S_log_tables[tmp_i][i][j])*(1. - x) + std::exp(S_log_tables[tmp_i+1][i][j])*x;
-            tau[i][j] = interp_value;
+            tau[i][j] = std::exp(S_log_tables[tmp_i][i][j])*(1. - x) + std::exp(S_log_tables[tmp_i+1][i][j])*x;
 
             if(i == j) continue;
 
-            double const E_j = energy_groups_centers[j];
-            // double const w_i = energy_groups_boundries[i+1] - energy_groups_boundries[i];
-            // double const w_j = energy_groups_boundries[j+1] - energy_groups_boundries[j];
-            // double const detailed_balance_factor = (E_i*E_i*w_i)/(E_j*E_j*w_j)*std::exp((E_j-E_i)/(units::k_boltz*temperature));
-
-            double const detailed_balance_factor = (1.0+n_eq[j])*B[i]*E_j / ((1.0+n_eq[i])*B[j]*E_i);
-
-            tau[j][i] = tau[i][j]*detailed_balance_factor;
+            if(force_detailed_balance){
+                double const E_j = energy_groups_centers[j];
+                double const detailed_balance_factor = (1.0+n_eq[j])*B[i]*E_j / ((1.0+n_eq[i])*B[j]*E_i);
+                tau[j][i] = tau[i][j]*detailed_balance_factor;
+            } 
+            else{
+                tau[j][i] = std::exp(S_log_tables[tmp_i][j][i])*(1. - x) + std::exp(S_log_tables[tmp_i+1][j][i])*x;
+            }
         }
     }
 

@@ -71,6 +71,8 @@ class ComptonMatrixMC {
        double sample_gamma(double const temperature);
     
     private:
+        void set_Bg_ng(double const);
+        
         Vector const energy_groups_centers;
         Vector const energy_groups_boundries;
         std::size_t const num_energy_groups;
