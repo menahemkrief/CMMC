@@ -3,7 +3,7 @@
 This code calculates the multigroup Compton scattering kernel on given photon energy bins, and for a given material temperature $T$, mass density $\rho$, average ionization $Z$ and atomic weight $A$.
 
 The integration of the Compton kernel on the energy bins is perofmed using a Monte-Carlo integration.
-The Compton matrix $\tau_{gg'}$ represents the total macroscopic cross-section, which is integrated over the scattering angle, for an incoming photon in group $g$ to scatter to an energy group $g'$.
+The Compton matrix $\tau_{gg'}$ represents the total macroscopic cross-section, integrated over the scattering angle, for an incoming photon in group $g$ to scatter to an energy group $g'$.
 
 The coupled radiation-matter equations with Compton scattering (including induced scattering) read:
 
@@ -33,7 +33,7 @@ $$ n_{g}=\frac{c^{3}E_{g}}{8\pi h\nu_{g}^{3}\Delta\nu_{g}} $$
   where $\Delta\nu_{g}=\nu_{g+ \frac{1}{2}}-\nu_{g- \frac{1}{2}}$.
 
 ## Compilation
-Compile the project at a `build` directory:
+Compile the project in a `build` directory:
 ```shell
 mkdir build
 cd build
