@@ -7,9 +7,9 @@ The Compton matrix $\tau_{gg'}$ represents the total macroscopic cross-section, 
 
 The coupled radiation-matter equations with Compton scattering (including induced scattering) read:
 
-$$ \frac{d E_{g}}{dt}=ck_{g}\left(b_{g}aT^{4}-E_{g}\right)+\sum_{g'}\tau_{g'g}\frac{\nu_{g}}{\nu_{g'}}\left(1+n_{g}\right)E_{g'}-\sum_{g'}\tau_{gg'}\left(1+n_{g'}\right)E_{g} $$
+$$ \frac{d E_{g}}{dt}=ck_{g}\left(b_{g}aT^{4}-E_{g}\right)+c\sum_{g'}\tau_{g'g}\frac{\nu_{g}}{\nu_{g'}}\left(1+n_{g}\right)E_{g'}-c\sum_{g'}\tau_{gg'}\left(1+n_{g'}\right)E_{g} $$
 
-$$ \frac{d u_{m}}{d t}=-\sum_{g}ck_{g}\left(b_{g}aT^{4}-E_{g}\right)-\sum_{gg'}\tau_{g'g}\frac{\nu_{g}}{\nu_{g'}}\left(1+n_{g}\right)E_{g'}+\sum_{gg'}\tau_{gg'}\left(1+n_{g'}\right)E_{g} $$
+$$ \frac{d u_{m}}{d t}=-\sum_{g}ck_{g}\left(b_{g}aT^{4}-E_{g}\right)-c\sum_{gg'}\tau_{g'g}\frac{\nu_{g}}{\nu_{g'}}\left(1+n_{g}\right)E_{g'}+c\sum_{gg'}\tau_{gg'}\left(1+n_{g'}\right)E_{g} $$
 
 where:
 
