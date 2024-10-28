@@ -33,9 +33,24 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                             B(num_energy_groups, signaling_NaN) {
     printf("Generating a ComptonMatrixMC object... seed=%d\n", seed);
     if(num_energy_groups + 1 != energy_groups_boundries.size()){
-        printf("fatal - inconsistent number of energy group boundaries and centers\n");
+        printf("ComptonMatrixMC fatal - inconsistent number of energy group boundaries and centers\n");
         exit(1);
     }
+    for(std::size_t g=0; g<num_energy_groups; ++g){
+        if(energy_groups_boundries[g]   < 0. or
+           energy_groups_boundries[g]   >= energy_groups_boundries[g+1] or
+           energy_groups_boundries[g]   >= energy_groups_centers[g] or
+           energy_groups_boundries[g+1] <= energy_groups_centers[g]){
+            printf("ComptonMatrixMC fatal - inconsistent energy group boundaries/centers\n");
+            exit(1);
+        }
+    }
+
+    printf("Compton matrices defined on %ld groups.\nPhoton energy group boundaries (in kev) \n", num_energy_groups);
+    for(auto const e : energy_groups_boundries){
+        printf("%g ", e/units::kev);
+    }
+    printf("\n");    
 }
 
 double ComptonMatrixMC::sample_gamma(double const temperature){
@@ -286,6 +301,7 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
 
             if(i == j) continue;
 
+            // enforce detailed balance on the interpolated matrix
             if(force_detailed_balance){
                 double const E_j = energy_groups_centers[j];
                 double const detailed_balance_factor = (1.0+n_eq[j])*B[i]*E_j / ((1.0+n_eq[i])*B[j]*E_i);
