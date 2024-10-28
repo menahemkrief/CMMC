@@ -32,6 +32,7 @@ $$ n_{g}=\frac{c^{3}E_{g}}{8\pi h\nu_{g}^{3}\Delta\nu_{g}} $$
 
   where $\Delta\nu_{g}=\nu_{g+ \frac{1}{2}}-\nu_{g- \frac{1}{2}}$.
 
+* The set of $G+1$ coupled nonlinear ordinary differntial equations are a closed system for $E_{1}...E_{G}$, $u_{m}$, since the material temperature is given as an equation of state $T=T(u_{m})$ and $k_{g}$, $\tau_{gg'}$ and $b_{g}$ are functions of $T$.
 ## Compilation
 Compile the project in a `build` directory:
 ```shell
