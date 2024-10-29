@@ -183,7 +183,13 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
             // step 8d: calcualte the cross section contribution
             double const sigma = 0.75 * D0/gamma * A*A*(A + 1./A - sin_p_tag*sin_p_tag)*w_E0*beta;
             
-            S_temp[g0][g] += sigma;
+            if(g0 == static_cast<std::size_t>(g)){
+                S_temp[g0][g] += sigma;
+            } else {
+                double const fac = (E-E0)/(energy_groups_centers[g]-energy_groups_centers[g0]);
+                S_temp[g0][g] += sigma*fac;
+                S_temp[g0][g0] += sigma*(1.0-fac);
+            }
         }    
     }
 
