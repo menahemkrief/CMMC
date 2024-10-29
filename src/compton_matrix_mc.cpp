@@ -306,11 +306,11 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
         double const E_i = energy_groups_centers[i];
 
         for(std::size_t j=i; j < num_energy_groups; ++j){
-            tau[i][j] = S_log_tables[tmp_i][i][j]*(1. - x) + S_log_tables[tmp_i+1][i][j]*x;
+            tau[i][j] = std::exp(S_log_tables[tmp_i][i][j])*(1. - x) + std::exp(S_log_tables[tmp_i+1][i][j])*x;
             
             if(i == j) continue;
             
-            tau[j][i] = S_log_tables[tmp_i][j][i]*(1. - x) + S_log_tables[tmp_i+1][j][i]*x;
+            tau[j][i] = std::exp(S_log_tables[tmp_i][j][i])*(1. - x) + std::exp(S_log_tables[tmp_i+1][j][i])*x;
 
             // enforce detailed balance on the interpolated matrix
             if(force_detailed_balance){
