@@ -153,9 +153,18 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
         double const interp = sample_uniform_01();
         for(std::size_t g0=0; g0<num_energy_groups; ++g0){
             // step 8a: sample energy
-            double const E0 = energy_groups_boundries[g0] + interp*(energy_groups_boundries[g0+1]-energy_groups_boundries[g0]);
+            double const boundry_g0 = energy_groups_boundries[g0];
+            double width = energy_groups_boundries[g0+1]-boundry_g0;
+            // width = energy_groups_boundries[g0] > 4.0*temperature*units::k_boltz ? std::min(width, 4.0*temperature*units::k_boltz) : width;
+
+            double const E0 = boundry_g0 + interp*width;
             // weight of energy sample
-            double const w_E0 = E0*E0*std::exp(-E0/(units::k_boltz*temperature));
+            // double const a = (E0-boundry_g0)/(units::k_boltz*temperature);
+            // double const w_E0 = a < 300.0 ? (E0*E0)/(boundry_g0*boundry_g0)*std::exp(-a) : 0.0;
+            // double const w_E0 = (E0*E0)/(boundry_g0*boundry_g0)*std::exp(-a);
+            double const a = E0/(units::k_boltz*temperature);
+            double const w_E0 = (E0*E0)*std::exp(-a);
+
             weight[g0] += w_E0;
             
             // step 8b: calculate E
