@@ -213,7 +213,9 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
                 double const E_gt = energy_groups_centers[gt];
                 double const detailed_balance_factor = (1.0+n_eq[gt])*B[g]*E_gt / ((1.0+n_eq[g])*B[gt]*E_g);
                 
-                if(S_temp[gt][g] < S_temp[g][gt]){
+                if(std::isnan(detailed_balance_factor)) continue;
+
+                if(detailed_balance_factor < 1.0){
                     S_temp[gt][g] = S_temp[g][gt]*detailed_balance_factor;
                 }
                 else{
@@ -304,15 +306,24 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
         double const E_i = energy_groups_centers[i];
 
         for(std::size_t j=i; j < num_energy_groups; ++j){
-            tau[i][j] = std::exp(S_log_tables[tmp_i][i][j])*(1. - x) + std::exp(S_log_tables[tmp_i+1][i][j])*x;
-
+            tau[i][j] = S_log_tables[tmp_i][i][j]*(1. - x) + S_log_tables[tmp_i+1][i][j]*x;
+            
             if(i == j) continue;
+            
+            tau[j][i] = S_log_tables[tmp_i][j][i]*(1. - x) + S_log_tables[tmp_i+1][j][i]*x;
 
             // enforce detailed balance on the interpolated matrix
             if(force_detailed_balance){
                 double const E_j = energy_groups_centers[j];
                 double const detailed_balance_factor = (1.0+n_eq[j])*B[i]*E_j / ((1.0+n_eq[i])*B[j]*E_i);
-                tau[j][i] = tau[i][j]*detailed_balance_factor;
+                
+                if(std::isnan(detailed_balance_factor)) continue;
+                
+                if(detailed_balance_factor < 1.0) {
+                    tau[j][i] = tau[i][j]*detailed_balance_factor;
+                } else {
+                    tau[i][j] = tau[j][i]/detailed_balance_factor;
+                }
             } 
             else{
                 tau[j][i] = std::exp(S_log_tables[tmp_i][j][i])*(1. - x) + std::exp(S_log_tables[tmp_i+1][j][i])*x;
