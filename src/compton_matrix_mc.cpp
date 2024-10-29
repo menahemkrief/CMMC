@@ -153,9 +153,14 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
         double const interp = sample_uniform_01();
         for(std::size_t g0=0; g0<num_energy_groups; ++g0){
             // step 8a: sample energy
-            double const E0 = energy_groups_boundries[g0] + interp*(energy_groups_boundries[g0+1]-energy_groups_boundries[g0]);
+            double const boundry_g0 = energy_groups_boundries[g0];
+            double width = energy_groups_boundries[g0+1]-boundry_g0;
+
+            double const E0 = boundry_g0 + interp*width;
             // weight of energy sample
-            double const w_E0 = E0*E0*std::exp(-E0/(units::k_boltz*temperature));
+            double const a = (E0-boundry_g0)/(units::k_boltz*temperature);
+            double const w_E0 = (E0*E0)/(boundry_g0*boundry_g0)*std::exp(-a);
+
             weight[g0] += w_E0;
             
             // step 8b: calculate E
@@ -174,7 +179,13 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
             // step 8d: calcualte the cross section contribution
             double const sigma = 0.75 * D0/gamma * A*A*(A + 1./A - sin_p_tag*sin_p_tag)*w_E0*beta;
             
-            S_temp[g0][g] += sigma;
+            if(g0 == static_cast<std::size_t>(g)){
+                S_temp[g0][g] += sigma;
+            } else {
+                double const fac = (E-E0)/(energy_groups_centers[g]-energy_groups_centers[g0]);
+                S_temp[g0][g] += sigma*fac;
+                S_temp[g0][g0] += sigma*(1.0-fac);
+            }
         }    
     }
 
@@ -185,11 +196,7 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
     for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
         for(std::size_t g=0; g < num_energy_groups; ++g){
             double const weight_avg = weight[g0]/num_of_samples;
-            if(weight_avg > std::numeric_limits<double>::min()*1e40 and S_temp[g0][g] > std::numeric_limits<double>::min()*1e40){
-                S_temp[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
-            } else {
-                S_temp[g0][g] = 1e-200;
-            }
+            S_temp[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
         }
     }
 
@@ -206,7 +213,9 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
                 double const E_gt = energy_groups_centers[gt];
                 double const detailed_balance_factor = (1.0+n_eq[gt])*B[g]*E_gt / ((1.0+n_eq[g])*B[gt]*E_g);
                 
-                if(S_temp[gt][g] < S_temp[g][gt]){
+                if(std::isnan(detailed_balance_factor)) continue;
+
+                if(detailed_balance_factor < 1.0){
                     S_temp[gt][g] = S_temp[g][gt]*detailed_balance_factor;
                 }
                 else{
@@ -298,14 +307,23 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
 
         for(std::size_t j=i; j < num_energy_groups; ++j){
             tau[i][j] = std::exp(S_log_tables[tmp_i][i][j])*(1. - x) + std::exp(S_log_tables[tmp_i+1][i][j])*x;
-
+            
             if(i == j) continue;
+            
+            tau[j][i] = std::exp(S_log_tables[tmp_i][j][i])*(1. - x) + std::exp(S_log_tables[tmp_i+1][j][i])*x;
 
             // enforce detailed balance on the interpolated matrix
             if(force_detailed_balance){
                 double const E_j = energy_groups_centers[j];
                 double const detailed_balance_factor = (1.0+n_eq[j])*B[i]*E_j / ((1.0+n_eq[i])*B[j]*E_i);
-                tau[j][i] = tau[i][j]*detailed_balance_factor;
+                
+                if(std::isnan(detailed_balance_factor)) continue;
+                
+                if(detailed_balance_factor < 1.0) {
+                    tau[j][i] = tau[i][j]*detailed_balance_factor;
+                } else {
+                    tau[i][j] = tau[j][i]/detailed_balance_factor;
+                }
             } 
             else{
                 tau[j][i] = std::exp(S_log_tables[tmp_i][j][i])*(1. - x) + std::exp(S_log_tables[tmp_i+1][j][i])*x;
