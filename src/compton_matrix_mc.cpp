@@ -159,11 +159,11 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
 
             double const E0 = boundry_g0 + interp*width;
             // weight of energy sample
-            // double const a = (E0-boundry_g0)/(units::k_boltz*temperature);
-            // double const w_E0 = a < 300.0 ? (E0*E0)/(boundry_g0*boundry_g0)*std::exp(-a) : 0.0;
-            // double const w_E0 = (E0*E0)/(boundry_g0*boundry_g0)*std::exp(-a);
-            double const a = E0/(units::k_boltz*temperature);
-            double const w_E0 = (E0*E0)*std::exp(-a);
+            double const a = (E0-boundry_g0)/(units::k_boltz*temperature);
+            // double const w_E0 =  300.0 ? (E0*E0)/(boundry_g0*boundry_g0)*std::exp(-a) : 0.0;
+            double const w_E0 = (E0*E0)/(boundry_g0*boundry_g0)*std::exp(-a);
+            // double const a = E0/(units::k_boltz*temperature);
+            // double const w_E0 = (E0*E0)*std::exp(-a);
 
             weight[g0] += w_E0;
             
@@ -200,11 +200,7 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
     for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
         for(std::size_t g=0; g < num_energy_groups; ++g){
             double const weight_avg = weight[g0]/num_of_samples;
-            if(weight_avg > std::numeric_limits<double>::min()*1e40 and S_temp[g0][g] > std::numeric_limits<double>::min()*1e40){
-                S_temp[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
-            } else {
-                S_temp[g0][g] = 1e-200;
-            }
+            S_temp[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
         }
     }
 
