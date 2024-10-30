@@ -4,3 +4,5 @@ cpp_modules
 *__pycache__
 *.png
 *.pdf
+checks.ipynb
+data_csv
