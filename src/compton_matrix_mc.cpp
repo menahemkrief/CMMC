@@ -211,6 +211,9 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
                 if(S_temp[gt][g] < thresh and S_temp[g][gt] < thresh) continue;
                 
                 double const E_gt = energy_groups_centers[gt];
+                
+                if(B[gt] < std::numeric_limits<double>::min()*1e40) continue;
+                
                 double const detailed_balance_factor = (1.0+n_eq[gt])*B[g]*E_gt / ((1.0+n_eq[g])*B[gt]*E_g);
                 
                 if(std::isnan(detailed_balance_factor)) continue;
@@ -222,6 +225,12 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
                     S_temp[g][gt] = S_temp[gt][g]/detailed_balance_factor;
                 }
             }
+        }
+    }
+
+    for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
+        for(std::size_t g=0; g < num_energy_groups; ++g){
+            S_temp[g0][g] = std::max(S_temp[g0][g], std::numeric_limits<double>::min()*1e40);
         }
     }
 
