@@ -73,7 +73,20 @@ class ComptonMatrixMC {
         * @return double the sampled value of gamma
         */
        double sample_gamma(double const temperature);
-    
+
+       /**
+        * @brief Retrieves the maximum temperature from the temperature grid.
+        * 
+        * This function returns the last element of the temperature grid, 
+        * which represents the highest temperature value stored in the grid.
+        * 
+        * @return double The maximum temperature value in the temperature grid.
+        */
+       double get_maximum_temperature_grid() const
+       {
+         return temperature_grid.back();
+       }
+       
     private:
         void set_Bg_ng(double const);
         
