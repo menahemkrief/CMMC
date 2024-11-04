@@ -7,6 +7,9 @@
 #include "planck_integral/planck_integral.hpp"
 
 #include <boost/math/special_functions/pow.hpp>
+#ifdef RICH_MPI
+    #include <mpi.h>
+#endif
 
 static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_NaN();
 
@@ -31,7 +34,7 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                             S_temp(num_energy_groups, Vector(num_energy_groups, signaling_NaN)),
                             n_eq(num_energy_groups, signaling_NaN),
                             B(num_energy_groups, signaling_NaN) {
-    printf("Generating a ComptonMatrixMC object... seed=%d\n", seed);
+    // printf("Generating a ComptonMatrixMC object... seed=%d\n", seed);
     if(num_energy_groups + 1 != energy_groups_boundries.size()){
         printf("ComptonMatrixMC fatal - inconsistent number of energy group boundaries and centers\n");
         exit(1);
@@ -95,6 +98,10 @@ void ComptonMatrixMC::set_Bg_ng(double const temperature){
 
 Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
 
+    int rank = 0;
+#ifdef RICH_MPI
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
     for(std::size_t i=0; i < num_energy_groups; ++i){
         for(std::size_t j=0; j < num_energy_groups; ++j){
             S_temp[i][j] = 0.0;
@@ -107,8 +114,11 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
     std::vector<double> weight(num_energy_groups, 0.);
     for(std::size_t sample_i=0; sample_i < num_of_samples; ++sample_i){
 
+        if(rank == 0)
+        {
         if((sample_i+1) % (num_of_samples/4) == 0 or sample_i==0){
             printf("Compton matrix T=%gkev sample %ld/%ld [%d%%]\n", temperature/units::kev_kelvin, sample_i+1, num_of_samples, int(100*double(sample_i+1.)/double(num_of_samples)));
+            }
         }
 
 
