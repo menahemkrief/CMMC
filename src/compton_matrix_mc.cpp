@@ -279,13 +279,16 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
     for(std::size_t i=0; i+1 < temperature_grid.size(); ++i){
         using boost::math::pow;
 
-        double const T1 = temperature_grid[i];
+        double const T1 = (i > 0) ? temperature_grid[i - 1] : temperature_grid[i];
         double const T2 = temperature_grid[i+1];
         
         double const dUm = units::arad*(pow<4>(T2) - pow<4>(T1));
 
         for(std::size_t g=0; g < num_energy_groups; ++g){
             for(std::size_t gt=0; gt<num_energy_groups; ++gt){
+                if(i > 0)
+                    dSdUm_tables[i][g][gt] = (std::exp(S_log_tables[i+1][g][gt]) - std::exp(S_log_tables[i-1][g][gt]))/dUm;
+                else
                 dSdUm_tables[i][g][gt] = (std::exp(S_log_tables[i+1][g][gt]) - std::exp(S_log_tables[i][g][gt]))/dUm;
             }
         }
@@ -325,11 +328,11 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
         double const E_i = energy_groups_centers[i];
 
         for(std::size_t j=i; j < num_energy_groups; ++j){
-            tau[i][j] = std::exp(S_log_tables[tmp_i][i][j])*(1. - x) + std::exp(S_log_tables[tmp_i+1][i][j])*x;
+            tau[i][j] = std::exp(S_log_tables[tmp_i][i][j]*(1. - x) + S_log_tables[tmp_i+1][i][j]*x);
             
             if(i == j) continue;
             
-            tau[j][i] = std::exp(S_log_tables[tmp_i][j][i])*(1. - x) + std::exp(S_log_tables[tmp_i+1][j][i])*x;
+            tau[j][i] = std::exp(S_log_tables[tmp_i][j][i]*(1. - x) + S_log_tables[tmp_i+1][j][i]*x);
 
             // enforce detailed balance on the interpolated matrix
             if(force_detailed_balance){
@@ -345,15 +348,15 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
                 }
             } 
             else{
-                tau[j][i] = std::exp(S_log_tables[tmp_i][j][i])*(1. - x) + std::exp(S_log_tables[tmp_i+1][j][i])*x;
+                tau[j][i] = std::exp(S_log_tables[tmp_i][j][i]*(1. - x) + S_log_tables[tmp_i+1][j][i]*x);
             }
         }
     }
 
     double const Nelectron = density*units::Navogadro/A*Z;
-    dtau_dUm = dSdUm_tables[tmp_i];
     for(std::size_t i=0; i<num_energy_groups; ++i){
         for(std::size_t j=0; j<num_energy_groups; ++j){
+            dtau_dUm[i][j] = dSdUm_tables[tmp_i][i][j] * (1 - x) + dSdUm_tables[tmp_i + 1][i][j] * x;
             tau[i][j] *= Nelectron;
             dtau_dUm[i][j] *= Nelectron;
         }
