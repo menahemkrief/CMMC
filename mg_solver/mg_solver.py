@@ -26,6 +26,10 @@ class MGSolver():
     for an infinite homogeneous and isotropic system,
     in the presence of absorption-emission and Compton scattering.
 
+    The system may be moving homologously - its volume can change over time. In that case,
+    radiation and material pdv terms, as well as Doppler shift material motion corrections, are
+    taken into account.
+
     All quantities are in c.g.s. units
     """
     def __init__(
@@ -39,7 +43,6 @@ class MGSolver():
             # --- initial conditions
             Eg_init,    # initial radiation field (radiation energy per unit volume in each group) [erg/cm^3]
             T_mat_init, # initial material temperature [K]
-            rho,        # material mass density [g/cm^3]
 
             # --- material model
             # material EOS - material internal energy per unit volume [erg/cm^3] - as a function of T [K], rho [g/cm^3]
@@ -47,6 +50,12 @@ class MGSolver():
 
             # material EOS - material temperature [K] - as a function of u [erg/cm^3], rho [g/cm^3]
             T_mat_u_eos,
+
+            # material motion
+            rho,                # material mass density [g/cm^3]. If there is no material motion, a constant float should be given. Otherwise, it must be a function of time.
+            div_velocity=None,  # the velocity divergence=dln[V(t)]/dt=-dln[rho(t)]/dt, where V(t) is the system's volume. Must be give when material motion is taken into account.
+            doppler_term=False, # whether or not to include the Doppler shift term
+            gamma_mat=None,     # when there is material motion, the material is heated by PdV. We assume an ideal gas material EOS P(e,rho)=(gamma_mat-1)*rho*e.
 
             # multigroup absorption opacity - a function of T [K], rho [g/cc]. Returns an array on groups of the absorption macroscopic cross section [1/cm]
             sigma_absorption=None,
@@ -79,6 +88,31 @@ class MGSolver():
 
         self.Eg_init = np.copy(Eg_init)
         assert len(self.Eg_init) == self.G
+        
+        # --- material motion
+        if isinstance(rho, float):
+            logger.info(f"material motion OFF. given a constant mass density rho={rho:g} g/cc")
+            assert rho > 0.
+            self.rho = lambda t: rho
+            self.motion = False
+            assert div_velocity==None
+            assert gamma_mat == None
+            assert not doppler_term
+        elif callable(rho):
+            logger.info(f"material motion ON. given density as a function of time")
+            self.rho = rho
+            self.motion = True
+            assert callable(div_velocity)
+            assert gamma_mat != None
+            logger.info(f"gamma_mat={gamma_mat:g}")
+            logger.info(f"Doppler term {'ON' if doppler_term else 'OFF'}")
+        else:
+            logger.fatal(f"density must be a function of time or a constant float")
+            sys.exit(1)     
+
+        self.div_velocity = div_velocity
+        self.doppler_term = doppler_term
+        self.gamma_mat = gamma_mat
 
         self.sigma_absorption = sigma_absorption
         if self.sigma_absorption != None:
@@ -103,10 +137,10 @@ class MGSolver():
 
         self.T_mat_init = T_mat_init
         self.T_rad_init = (np.sum(self.Eg_init)/units.arad)**0.25
-        self.rho = rho
+
         logger.info(f"inital material T={self.T_mat_init/units.kev_kelvin:g} kev")
         logger.info(f"inital radiation effective T={self.T_rad_init / units.kev_kelvin:g} kev")
-        logger.info(f"inital material density={self.rho:g} g/cc")
+        logger.info(f"inital material density={self.rho(0.):g} g/cc")
 
         # ---- auxiliary variables
         self.dydt = np.zeros(self.G+1)
@@ -120,39 +154,41 @@ class MGSolver():
         self.ode_solver = scipy.integrate.ode(self.ydot_func).set_integrator(ode_scheme)
         self.ode_solver.set_initial_value(self.y_init, 0.)
 
-        # ---- The equilibrium temperature is obtained from energy conservation
+        # ---- The equilibrium temperature is obtained from energy conservation (when there is no motion)
         # it is given by a solution of the nonlinear equation:
         # sum(Eg_init) + u_mat_init = aT_eq^4 + u_mat(T_eq)
-        logger.info("calculating the equilibrium temperature...")
-        Etot_init = np.sum(self.Eg_init) + self.u_mat_T_eos(self.T_mat_init, rho)
-        # solve the nonlinear equation for the eq. temperature
-        self.T_eq = scipy.optimize.fsolve(
-            func=lambda T: (units.arad*T**4 + self.u_mat_T_eos(T,rho)-Etot_init),
-            x0=0.5*(self.T_rad_init+self.T_mat_init),
-        )[0]
-        logger.info(f"T_eq={self.T_eq/units.kev_kelvin:.10g} kev")
+        self.T_eq = None
+        if not self.motion:
+            logger.info("calculating the equilibrium temperature...")
+            Etot_init = np.sum(self.Eg_init) + self.u_mat_T_eos(self.T_mat_init, rho)
+            # solve the nonlinear equation for the eq. temperature
+            self.T_eq = scipy.optimize.fsolve(
+                func=lambda T: (units.arad*T**4 + self.u_mat_T_eos(T,rho)-Etot_init),
+                x0=0.5*(self.T_rad_init+self.T_mat_init),
+            )[0]
+            logger.info(f"T_eq={self.T_eq/units.kev_kelvin:.10g} kev")
 
-        # ---- make sure Planckians at maximal/minimal possible material temperatures 
-        # ---- are well covered on the minimal-maxiaml group boundaries
-        Emin, Emax = energy_groups_boundaries[0], energy_groups_boundaries[-1]
-        logger.info(f"Energy groups range E=[{Emin/units.kev:g}, {Emax/units.kev:g}]kev")
-        Tmax = max(self.T_eq, self.T_mat_init)
-        ekt_1 = Emin/(units.k_boltz*Tmax)
-        ekt_2 = Emax/(units.k_boltz*Tmax)
-        b_max = planck_integral.planck_integral(a=ekt_1, b=ekt_2)
-        logger.info(f"At maximal Tmat={Tmax/units.kev_kelvin:g}kev range E/kTm=[{ekt_1:g}, {ekt_2:g}] covers a Planckian: {b_max*100:g}% (missing {(1-b_max)*100:.4g}%)")
-        if 1.-b_max > 1e-4:
-            logger.fatal(f"Planckian not covered well at maximal Tmat, enlarge your upper/lower group energies")
-            sys.exit(1)
-        
-        Tmin = min(self.T_eq, self.T_mat_init)
-        ekt_1 = Emin/(units.k_boltz*Tmin)
-        ekt_2 = Emax/(units.k_boltz*Tmin)
-        b_min = planck_integral.planck_integral(a=ekt_1, b=ekt_2)
-        logger.info(f"At minimal Tmat={Tmin/units.kev_kelvin:g}kev range E/kTm=[{ekt_1:g}, {ekt_2:g}] covers a Planckian: {b_min*100:g}% (missing {(1-b_min)*100:.4g}%)")
-        if 1.-b_max > 1e-4:
-            logger.fatal(f"Planckian not covered well at minimal Tmat, enlarge your upper/lower group energies")
-            sys.exit(1)
+            # ---- make sure Planckians at maximal/minimal possible material temperatures 
+            # ---- are well covered on the minimal-maxiaml group boundaries
+            Emin, Emax = energy_groups_boundaries[0], energy_groups_boundaries[-1]
+            logger.info(f"Energy groups range E=[{Emin/units.kev:g}, {Emax/units.kev:g}]kev")
+            Tmax = max(self.T_eq, self.T_mat_init)
+            ekt_1 = Emin/(units.k_boltz*Tmax)
+            ekt_2 = Emax/(units.k_boltz*Tmax)
+            b_max = planck_integral.planck_integral(a=ekt_1, b=ekt_2)
+            logger.info(f"At maximal Tmat={Tmax/units.kev_kelvin:g}kev range E/kTm=[{ekt_1:g}, {ekt_2:g}] covers a Planckian: {b_max*100:g}% (missing {(1-b_max)*100:.4g}%)")
+            if 1.-b_max > 1e-4:
+                logger.fatal(f"Planckian not covered well at maximal Tmat, enlarge your upper/lower group energies")
+                sys.exit(1)
+            
+            Tmin = min(self.T_eq, self.T_mat_init)
+            ekt_1 = Emin/(units.k_boltz*Tmin)
+            ekt_2 = Emax/(units.k_boltz*Tmin)
+            b_min = planck_integral.planck_integral(a=ekt_1, b=ekt_2)
+            logger.info(f"At minimal Tmat={Tmin/units.kev_kelvin:g}kev range E/kTm=[{ekt_1:g}, {ekt_2:g}] covers a Planckian: {b_min*100:g}% (missing {(1-b_min)*100:.4g}%)")
+            if 1.-b_max > 1e-4:
+                logger.fatal(f"Planckian not covered well at minimal Tmat, enlarge your upper/lower group energies")
+                sys.exit(1)
     
     def ydot_func(self, t, y):
         """
@@ -161,7 +197,7 @@ class MGSolver():
         """
         Eg = np.asfarray(y[:-1])
         um = y[-1]
-        rho = self.rho
+        rho = self.rho(t)
         Tm = self.T_mat_u_eos(um, rho)
 
         # --- absorption-emission
@@ -187,12 +223,38 @@ class MGSolver():
             # out-scatter
             compton_term -= np.array([Eg[g]*np.sum(tau_g_gp[g, :]*(1.+n)) for g in range(self.G)])
 
+        # ---- Material motion
+        pdv_rad = np.zeros(self.G)
+        pdv_mat = 0.
+        Delta_doppler = np.zeros(self.G)
+        if self.motion:
+            div = self.div_velocity(t)
+            pdv_rad = -4./3.*Eg*div
+            pdv_mat = -self.gamma_mat*um*div
+
+            # --- Doppler term
+            if self.doppler_term:
+                expansion = div >= 0.
+
+                # -----upwind method
+                # loop over energy group boundaries
+                for gb in range(1, self.G):
+                    g_left = gb-1
+                    g_right = gb
+                    g_donor = g_right if expansion else g_left
+
+                    nuE_boundary = self.energy_groups_centers[g_donor] * Eg[g_donor] / self.energy_groups_width[g_donor]
+                    Delta_doppler[g_left] += nuE_boundary
+                    Delta_doppler[g_right] -= nuE_boundary
+                
+                Delta_doppler *= div/3.
+
         # --- set the time derivatives of the radiation and material energy
         # G radiation group equations
-        self.dydt[:-1] = units.clight*(abs_term + compton_term)
+        self.dydt[:-1] = units.clight*(abs_term + compton_term) + pdv_rad + Delta_doppler
 
         # matter energy equation
-        self.dydt[-1] = -units.clight*(np.sum(abs_term + compton_term))
+        self.dydt[-1] = -units.clight*(np.sum(abs_term + compton_term)) + pdv_mat
 
         return self.dydt
     
@@ -201,12 +263,14 @@ class MGSolver():
         ysol = self.ode_solver.integrate(time)
         Eg = ysol[:-1]
         u_mat = ysol[-1]
-
-        T_rad = (np.sum(Eg)/units.arad)**0.25
-        T_mat = self.T_mat_u_eos(u_mat, self.rho)
+        
+        E_rad_tot = np.sum(Eg)
+        T_rad = (E_rad_tot/units.arad)**0.25
+        T_mat = self.T_mat_u_eos(u_mat, self.rho(time))
 
         return dict(
             Eg=Eg,
+            E_rad_tot=E_rad_tot,
             T_rad=T_rad,
             u_mat=u_mat,
             T_mat=T_mat,
