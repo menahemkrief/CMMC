@@ -210,7 +210,7 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
             for(std::size_t gt=g+1; gt<num_energy_groups; ++gt){
                 if(S_temp[gt][g] < thresh and S_temp[g][gt] < thresh) continue;
 
-                if(B[g]<std::numeric_limits<double>::min()*1e3 or B[gt]<std::numeric_limits<double>::min()*1e3){
+                if(B[g]<std::numeric_limits<double>::min()*1e40 or B[gt]<std::numeric_limits<double>::min()*1e40){
                     S_temp[g][gt] = S_temp[gt][g] = 0.;
                     continue;
                 }
@@ -318,7 +318,7 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
             // enforce detailed balance on the interpolated matrix
             if(force_detailed_balance){
 
-                if(B[i]<std::numeric_limits<double>::min()*1e3 or B[j]<std::numeric_limits<double>::min()*1e3){
+                if(B[i]<std::numeric_limits<double>::min()*1e40 or B[j]<std::numeric_limits<double>::min()*1e40){
                     tau[i][j] = tau[j][i] = 0.;
                     continue;
                 }
