@@ -17,23 +17,23 @@ from cpp_modules._compton_matrix_mc import ComptonMatrixMC
 import cpp_modules._units as units
 
 """
-Solution for Benchmarks in the literature:
+Solution for two Benchmarks in the literature:
 Figs 1-2 in Winslow AM. Multifrequency-gray method for radiation diffusion with Compton scattering. Journal of Computational Physics. 1995 Mar 15;117(2):262-73.
 Figs 1-2 in McGraw C, Till A, Warsa J. A new operator-split Compton scattering method. Journal of Computational Physics. 2023 Apr 1;478:111980.
 """
 
 rho = 1.
 
-# case 1 (Figs. 1-2 in Winslaw 1995 and  Fig. 1 in McGraw-Till-Warsa 2023)
-T_mat_init = 20.*units.kev_kelvin
-T_rad_init = 1.*units.kev_kelvin
-t_end = 3e-8 # Till paper
-# t_end = 5e-9 # Winslaw1995 paper
+# # case 1 (Figs. 1-2 in Winslaw 1995 and  Fig. 1 in McGraw-Till-Warsa 2023)
+# T_mat_init = 20.*units.kev_kelvin
+# T_rad_init = 1.*units.kev_kelvin
+# t_end = 3e-8 # McGraw-Till-Warsa paper
+# # t_end = 5e-9 # Winslaw1995 paper
 
-# # case 2 (Fig. 2 in McGraw-Till-Warsa 2023)
-# T_mat_init = 1.*units.kev_kelvin
-# T_rad_init = 10.*units.kev_kelvin
-# t_end = 0.5e-8
+# case 2 (Fig. 2 in McGraw-Till-Warsa 2023)
+T_mat_init = 1.*units.kev_kelvin
+T_rad_init = 10.*units.kev_kelvin
+t_end = 0.5e-8
 
 
 # ---- material EOS
@@ -68,7 +68,6 @@ Eg_init = get_planckian(T_rad_init, energy_groups_boundaries)
 sigma_ff_RL = lambda e,T,rho: 3.7e8*Zf**3*(rho*units.Navogadro/A)**2*T**(-0.5)*(1.-np.exp(-e/(units.k_boltz*T)))*(e/units.planck_constant)**-3
 energy_groups_centers_geom = np.sqrt(energy_groups_boundaries[1:]*energy_groups_boundaries[:-1])
 sigma_absorption = lambda T,rho: [sigma_ff_RL(max(e, 10.*units.ev),T,rho) for e in energy_groups_centers_geom]
-# sigma_absorption2 = lambda T,rho: [1.5*rho*rho*(T/units.kev_kelvin)**-0.5*(1-np.exp(-e/(units.k_boltz*T)))*(e/units.kev)**-3 for e in energy_groups_center_geom]
 
 # --plot the opacity on bins
 # plt.plot(energy_groups_centers/units.kev, sigma_absorption2(2.*units.kev_kelvin,1.))
@@ -121,21 +120,56 @@ T_rad = np.array([r["T_rad"]/units.kev_kelvin for r in res])
 
 from tabulate import tabulate
 table = tabulate(list(zip(times[::5]/1e-9, T_mat[::5], T_rad[::5])), headers=["time [ns]", "T_mat [kev]", "T_rad [kev]"], floatfmt=".10g", numalign="left")
-print(table)
 
 # ---- plot material and effective radiation temperatures as a function of time
 plt.plot(times/1e-9, T_mat, "r", lw=2, label=f"$T_{{m}}(t={times[-1]/1e-9:.3g}\\mathrm{{ns}})={T_mat[-1]:g}$")
 plt.plot(times/1e-9, T_rad, "b", lw=2, label=f"$T_{{r}}(t={times[-1]/1e-9:.3g}\\mathrm{{ns}})={T_rad[-1]:g}$")
 plt.axhline(y=solver.T_eq/units.kev_kelvin, c="k", ls="--", lw=3, label=f"$T_{{eq}}={solver.T_eq/units.kev_kelvin:g}$")
 plt.grid()
-plt.legend().set_draggable(True)
 plt.ylabel("$T(t)$ [kev]")
 plt.xlabel("$t$ [ns]")
+plt.tight_layout()
 
-# second case
-if  T_mat_init == 1.*units.kev_kelvin:
+# ---- compare to data from literature
+
+if  T_mat_init == 20.*units.kev_kelvin:
+
+    if sigma_absorption != None:
+        # First case in McGraw-Till-Warsa (Fig. 1)
+        data = np.loadtxt("data_from_literature/Till_winslow_Tmat.txt", delimiter=",")
+        plt.plot(data[:,0]/1e-9, data[:,1], "ro",  label=f"$T_{{m}}$ McGraw-Till-Warsa")
+        data = np.loadtxt("data_from_literature/Till_winslow_Trad.txt", delimiter=",")
+        plt.plot(data[:,0]/1e-9, data[:,1], "bo", label=f"$T_{{r}}$ McGraw-Till-Warsa")
+        data = np.loadtxt("data_from_literature/Winslow_Tmat.txt", delimiter=",")
+        plt.plot(data[:,0]/1e-9, data[:,1], "rs",  label=f"$T_{{m}}$ Winslow")
+        data = np.loadtxt("data_from_literature/Winslow_Trad.txt", delimiter=",")
+        plt.plot(data[:,0]/1e-9, data[:,1], "bs", label=f"$T_{{r}}$ Winslow")
+        plt.legend(loc="best", fontsize=15).set_draggable(True)
+        plt.savefig("WinslowTill.png")
+        plt.savefig("WinslowTill.pdf")
+        # as in Winslow1995 Fig. 1
+        plt.xlim([0,5])
+        plt.savefig("WinslowTill_xlim5.png")
+        plt.savefig("WinslowTill_xlim5.pdf")
+    else:
+        # Winslow1995 Fig. 2
+        data = np.loadtxt("data_from_literature/Winslow_Tmat_only_compton.txt", delimiter=",")
+        plt.plot(data[:,0]/1e-9, data[:,1], "rs",  label=f"$T_{{m}}$ Winslow")
+        data = np.loadtxt("data_from_literature/Winslow_Trad_only_compton.txt", delimiter=",")
+        plt.plot(data[:,0]/1e-9, data[:,1], "bs", label=f"$T_{{r}}$ Winslow")
+        plt.legend(loc="best").set_draggable(True)
+        plt.xlim([0,5])
+        plt.savefig("Winslow_only_compton.png")
+        plt.savefig("Winslow_only_compton.pdf")
+else:
+    # second case in McGraw-Till-Warsa (Fig. 2)
+    data = np.loadtxt("data_from_literature/Till_Tmat.txt", delimiter=",")
+    plt.plot(data[:,0]/1e-9, data[:,1], "ro",  label=f"$T_{{m}}$ McGraw-Till-Warsa")
+    plt.legend(loc="best").set_draggable(True)
     plt.xscale("log")
     plt.xlim([1e-2,5])
+    plt.savefig("Till_Fig2.png")
+    plt.savefig("Till_Fig2.pdf")
 
 plt.show()
 
@@ -165,11 +199,14 @@ for i, (t,r) in enumerate(zip(times[::5], res[::5])):
     plt.title(f"$t={t/1e-9:g}$ns")
     plt.xlabel("photon energy $E$ [kev]")
     plt.ylabel("$U(E) \\ [\\mathrm{{erg/cm^{{3}}/kev}}]$ ")
+    plt.tight_layout()
     plt.savefig(path.join(dir_figs, f"spec_{i:04d}.png"))
     plt.ylim(ymin=1e-2)
-    plt.yscale("log")
-    plt.savefig(path.join(dir_figs, f"spec_logy_{i:04d}.png"))
     plt.xscale("log")
+    plt.tight_layout()
+    plt.savefig(path.join(dir_figs, f"spec_logx_{i:04d}.png"))
+    plt.yscale("log")
+    plt.tight_layout()
     plt.savefig(path.join(dir_figs, f"spec_loglog_{i:04d}.png"))
     # plt.show()
     plt.close()
