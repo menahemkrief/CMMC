@@ -19,7 +19,7 @@ void bind_compton_matrix_mc(pybind11::module& m){
                         "force_detailed_balance"_a,
                         "seed"_a=-1)
     .def("sample_gamma",       &ComptonMatrixMC::sample_gamma,       pybind11::kw_only(), "temperature"_a)
-    .def("calculate_S_matrix", &ComptonMatrixMC::calculate_S_matrix, pybind11::kw_only(), "temperature"_a)
+    .def("get_S_and_dSdUm_matrices", &ComptonMatrixMC::get_S_and_dSdUm_matrices, pybind11::kw_only(), "temperature"_a)
     .def("set_tables",         &ComptonMatrixMC::set_tables,         pybind11::kw_only(), "temperature_grid"_a)
     .def("get_tau_matrix",     pybind11::overload_cast<double const, double const, double const, double const>(&ComptonMatrixMC::get_tau_matrix), pybind11::kw_only(), "temperature"_a, "density"_a, "A"_a, "Z"_a)
     ;

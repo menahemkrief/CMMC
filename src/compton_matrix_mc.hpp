@@ -38,6 +38,9 @@ class ComptonMatrixMC {
          * @return Matrix the microscopic Compton scattering matrix [cm^2]
          */
         void calculate_S_and_dSdUm_matrices(double const temperature, Matrix& S, Matrix& dSdUm);
+        
+        std::pair<Matrix, Matrix> get_S_and_dSdUm_matrices(double const temperature);
+
         /**
          * @brief Given a set of temperatures, calculates and store the S matrices, so 
          * that tau matrices can be calculated for other temperatures using interpolation between 
