@@ -30,7 +30,6 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                             temperature_grid(),
                             S_log_tables(),
                             dSdUm_tables(),
-                            S_temp(num_energy_groups, Vector(num_energy_groups, signaling_NaN)),
                             n_eq(num_energy_groups, signaling_NaN),
                             B(num_energy_groups, signaling_NaN) {
     printf("Generating a ComptonMatrixMC object... seed=%d\n", seed);

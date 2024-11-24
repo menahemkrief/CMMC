@@ -93,7 +93,6 @@ class ComptonMatrixMC {
         std::vector<Matrix> dSdUm_tables;
 
         // auxiliary arrays
-        Matrix S_temp;
         std::vector<double> n_eq;
         std::vector<double> B;
 };
