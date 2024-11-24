@@ -270,27 +270,12 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
     temperature_grid = temperature_grid_;
     S_log_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
     dSdUm_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
-    
+
     for(std::size_t i=0; i < temperature_grid.size(); ++i){
-        S_log_tables[i] = calculate_S_matrix(temperature_grid[i]);
+        calculate_S_and_dSdUm_matrices(temperature_grid[i], S_log_tables[i], dSdUm_tables[i]);
         for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
             for(std::size_t g=0; g < num_energy_groups; ++g){
                 S_log_tables[i][g0][g] = std::log(S_log_tables[i][g0][g]);
-            }
-        }
-    }
-
-    for(std::size_t i=0; i+1 < temperature_grid.size(); ++i){
-        using boost::math::pow;
-
-        double const T1 = temperature_grid[i];
-        double const T2 = temperature_grid[i+1];
-        
-        double const dUm = units::arad*(pow<4>(T2) - pow<4>(T1));
-
-        for(std::size_t g=0; g < num_energy_groups; ++g){
-            for(std::size_t gt=0; gt<num_energy_groups; ++gt){
-                dSdUm_tables[i][g][gt] = (std::exp(S_log_tables[i+1][g][gt]) - std::exp(S_log_tables[i][g][gt]))/dUm;
             }
         }
     }
