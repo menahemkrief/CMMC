@@ -316,10 +316,12 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
 
         for(std::size_t j=i; j < num_energy_groups; ++j){
             tau[i][j] = std::exp(S_log_tables[tmp_i][i][j])*(1. - x) + std::exp(S_log_tables[tmp_i+1][i][j])*x;
-            
+            dtau_dUm[i][j] = dSdUm_tables[tmp_i][i][j]*(1. - x) + dSdUm_tables[tmp_i+1][i][j]*x;
+
             if(i == j) continue;
             
             tau[j][i] = std::exp(S_log_tables[tmp_i][j][i])*(1. - x) + std::exp(S_log_tables[tmp_i+1][j][i])*x;
+            dtau_dUm[j][i] = dSdUm_tables[tmp_i][j][i]*(1. - x) + dSdUm_tables[tmp_i+1][j][i]*x;
 
             // enforce detailed balance on the interpolated matrix
             if(force_detailed_balance){
@@ -341,7 +343,6 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
     }
 
     double const Nelectron = density*units::Navogadro/A*Z;
-    dtau_dUm = dSdUm_tables[tmp_i];
     for(std::size_t i=0; i<num_energy_groups; ++i){
         for(std::size_t j=0; j<num_energy_groups; ++j){
             tau[i][j] *= Nelectron;
