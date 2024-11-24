@@ -246,7 +246,7 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
         for (std::size_t g=0; g < num_energy_groups; ++g){
             dSdUm[g0][g] *= theta_1*theta_1*dtheta_dT;
             dSdUm[g0][g] -= S[g0][g]*dtheta_dT*theta_1;
-            dSdUm[g0][g] += S[g0][g]*(cyl_bessel_k_prime(2.0, theta_1)/cyl_bessel_k(2.0, theta_1))*theta_1*theta_1*dtheta_dT;
+            dSdUm[g0][g] += S[g0][g]*(cyl_bessel_k_prime(2, theta_1)/cyl_bessel_k(2, theta_1))*theta_1*theta_1*dtheta_dT;
             dSdUm[g0][g] *= 1.0/(4.0*units::arad*pow<3>(temperature));
         }
     }
