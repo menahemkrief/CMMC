@@ -183,13 +183,15 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
             
             if(g0 == static_cast<std::size_t>(g)){
                 S[g0][g] += sigma;
+                dSdUm[g0][g] += sigma*gamma;
             } else {
                 double const fac = (E-E0)/(energy_groups_centers[g]-energy_groups_centers[g0]);
                 S[g0][g] += sigma*fac;
-                S[g0][g0] += sigma*(1.0-fac);
-            }
+                dSdUm[g0][g] += sigma*gamma*fac;
 
-            dSdUm[g0][g] += sigma*gamma;
+                S[g0][g0] += sigma*(1.0-fac);
+                dSdUm[g0][g0] += sigma*gamma*(1.0-fac);
+            }
         }    
     }
 
