@@ -7,6 +7,8 @@
 #include "planck_integral/planck_integral.hpp"
 
 #include <boost/math/special_functions/pow.hpp>
+#include <boost/math/special_functions/bessel.hpp>
+#include <boost/math/special_functions/bessel_prime.hpp>
 
 static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_NaN();
 
@@ -93,11 +95,12 @@ void ComptonMatrixMC::set_Bg_ng(double const temperature){
     }
 }
 
-Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
+void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, Matrix& S, Matrix& dSdUm){
 
     for(std::size_t i=0; i < num_energy_groups; ++i){
         for(std::size_t j=0; j < num_energy_groups; ++j){
-            S_temp[i][j] = 0.0;
+            S[i][j] = 0.0;
+            dSdUm[i][j] = 0.0;
         }
     }
 
@@ -180,12 +183,14 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
             double const sigma = 0.75 * D0/gamma * A*A*(A + 1./A - sin_p_tag*sin_p_tag)*w_E0*beta;
             
             if(g0 == static_cast<std::size_t>(g)){
-                S_temp[g0][g] += sigma;
+                S[g0][g] += sigma;
             } else {
                 double const fac = (E-E0)/(energy_groups_centers[g]-energy_groups_centers[g0]);
-                S_temp[g0][g] += sigma*fac;
-                S_temp[g0][g0] += sigma*(1.0-fac);
+                S[g0][g] += sigma*fac;
+                S[g0][g0] += sigma*(1.0-fac);
             }
+
+            dSdUm[g0][g] += sigma*gamma;
         }    
     }
 
@@ -196,9 +201,20 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
     for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
         for(std::size_t g=0; g < num_energy_groups; ++g){
             double const weight_avg = weight[g0]/num_of_samples;
-            S_temp[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
+            S[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
+            dSdUm[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
         }
     }
+
+    using boost::math::cyl_bessel_k_prime;
+    using boost::math::cyl_bessel_k;
+    using boost::math::pow;
+    
+    double const theta = units::k_boltz * temperature / units::me_c2;
+    double const dtheta_dT = units::k_boltz / units::me_c2;
+    
+    double const theta_1 = 1.0/theta;
+    
 
     if(force_detailed_balance){
         set_Bg_ng(temperature);
@@ -208,7 +224,7 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
             double const E_g = energy_groups_centers[g];
             
             for(std::size_t gt=g+1; gt<num_energy_groups; ++gt){
-                if(S_temp[gt][g] < thresh and S_temp[g][gt] < thresh) continue;
+                if(S[gt][g] < thresh and S[g][gt] < thresh) continue;
                 
                 double const E_gt = energy_groups_centers[gt];
                 double const detailed_balance_factor = (1.0+n_eq[gt])*B[g]*E_gt / ((1.0+n_eq[g])*B[gt]*E_g);
@@ -216,16 +232,23 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
                 if(std::isnan(detailed_balance_factor)) continue;
 
                 if(detailed_balance_factor < 1.0){
-                    S_temp[gt][g] = S_temp[g][gt]*detailed_balance_factor;
+                    S[gt][g] = S[g][gt]*detailed_balance_factor;
                 }
                 else{
-                    S_temp[g][gt] = S_temp[gt][g]/detailed_balance_factor;
+                    S[g][gt] = S[gt][g]/detailed_balance_factor;
                 }
             }
         }
     }
-
-    return S_temp;
+    
+    for (std::size_t g0=0; g0 < num_energy_groups; ++g0){
+        for (std::size_t g=0; g < num_energy_groups; ++g){
+            dSdUm[g0][g] *= theta_1*theta_1*dtheta_dT;
+            dSdUm[g0][g] -= S[g0][g]*dtheta_dT*theta_1;
+            dSdUm[g0][g] += S[g0][g]*(cyl_bessel_k_prime(2.0, theta_1)/cyl_bessel_k(2.0, theta_1))*theta_1*theta_1*dtheta_dT;
+            dSdUm[g0][g] *= 1.0/(4.0*units::arad*pow<3>(temperature));
+        }
+    }
 }
 
 void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){

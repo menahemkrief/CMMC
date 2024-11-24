@@ -33,10 +33,11 @@ class ComptonMatrixMC {
          * The calculation is perfoemed using a Monte-Carlo integration.
          * 
          * @param temperature the given temeprature [K]
+         * @param S the S matrix 
+         * @param dSdUm matrix
          * @return Matrix the microscopic Compton scattering matrix [cm^2]
          */
-        Matrix calculate_S_matrix(double const temperature);
-        
+        void calculate_S_and_dSdUm_matrices(double const temperature, Matrix& S, Matrix& dSdUm);
         /**
          * @brief Given a set of temperatures, calculates and store the S matrices, so 
          * that tau matrices can be calculated for other temperatures using interpolation between 
