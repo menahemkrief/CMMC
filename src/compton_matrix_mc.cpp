@@ -344,6 +344,27 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
             }
         }
     }
+    for(std::size_t i=0; i < temperature_grid.size(); ++i){
+        size_t lower = i > 0 ? i - 1 : 0;
+        size_t upper = i < temperature_grid.size() - 1 ? i + 1 : temperature_grid.size() - 1;
+        while((temperature_grid[upper] - temperature_grid[lower]) < units::kev_kelvin)
+        {
+            if(lower > 0) --lower;
+            if(upper < (temperature_grid.size() - 1)) ++upper;
+            if(lower == 0 && upper == (temperature_grid.size() - 1))
+                break;
+        }
+        double dUm = (units::arad * (boost::math::pow<4>(temperature_grid[upper]) - boost::math::pow<4>(temperature_grid[lower])));
+        for (std::size_t g0=0; g0 < num_energy_groups; ++g0){
+            for (std::size_t g=0; g < num_energy_groups; ++g){
+                dSdUm_tables[i][g0][g] = (std::exp(S_log_tables[upper][g0][g]) - std::exp(S_log_tables[lower][g0][g])) / dUm;
+            }
+        }
+    }
+    if(rank == 0)
+        std::cout<<"Done compton matrix tables"<<std::endl;
+
+  
 }
 
 void ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau, Matrix& dtau_dUm){
