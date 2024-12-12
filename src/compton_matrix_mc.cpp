@@ -9,8 +9,30 @@
 #include <boost/math/special_functions/pow.hpp>
 #include <boost/math/special_functions/bessel.hpp>
 #include <boost/math/special_functions/bessel_prime.hpp>
+#ifdef RICH_MPI
+    #include <mpi.h>
+#endif
 
 static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_NaN();
+
+#ifdef RICH_MPI
+namespace
+{
+    void ReduceMatrix(Matrix &S, size_t const num_energy_groups)
+    {
+        int ws = 0;
+        MPI_Comm_size(MPI_COMM_WORLD, &ws);
+        std::vector<double> send_vector(num_energy_groups * num_energy_groups, 0);
+        for(std::size_t g0=0; g0 < num_energy_groups; ++g0)
+            for(std::size_t g=0; g < num_energy_groups; ++g)
+                send_vector[g0*num_energy_groups + g] = S[g0][g];
+        MPI_Allreduce(MPI_IN_PLACE, send_vector.data(), num_energy_groups * num_energy_groups, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        for(std::size_t g0=0; g0 < num_energy_groups; ++g0)
+            for(std::size_t g=0; g < num_energy_groups; ++g)
+                S[g0][g] = send_vector[g0*num_energy_groups + g] / ws;
+    }
+}
+#endif
 
 ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_, 
                                  Vector const energy_groups_boundries_, 
@@ -32,7 +54,12 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                             dSdUm_tables(),
                             n_eq(num_energy_groups, signaling_NaN),
                             B(num_energy_groups, signaling_NaN) {
-    printf("Generating a ComptonMatrixMC object... seed=%d\n", seed);
+    int rank = 0;
+#ifdef RICH_MPI
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    sample_uniform_01.engine().seed(seed + rank);
+#endif
+    // printf("Generating a ComptonMatrixMC object... seed=%d\n", seed);
     if(num_energy_groups + 1 != energy_groups_boundries.size()){
         printf("ComptonMatrixMC fatal - inconsistent number of energy group boundaries and centers\n");
         exit(1);
@@ -46,12 +73,14 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
             exit(1);
         }
     }
-
+    if(rank == 0)
+    {
     printf("Compton matrices defined on %ld groups.\nPhoton energy group boundaries (in kev) \n", num_energy_groups);
     for(auto const e : energy_groups_boundries){
         printf("%g ", e/units::kev);
     }
     printf("\n");    
+    }
 }
 
 double ComptonMatrixMC::sample_gamma(double const temperature){
@@ -96,6 +125,10 @@ void ComptonMatrixMC::set_Bg_ng(double const temperature){
 
 void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, Matrix& S, Matrix& dSdUm){
 
+    int rank = 0;
+#ifdef RICH_MPI
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
     for(std::size_t i=0; i < num_energy_groups; ++i){
         for(std::size_t j=0; j < num_energy_groups; ++j){
             S[i][j] = 0.0;
@@ -109,8 +142,11 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
     std::vector<double> weight(num_energy_groups, 0.);
     for(std::size_t sample_i=0; sample_i < num_of_samples; ++sample_i){
 
+        if(rank == 0)
+        {
         if((sample_i+1) % (num_of_samples/4) == 0 or sample_i==0){
             printf("Compton matrix T=%gkev sample %ld/%ld [%d%%]\n", temperature/units::kev_kelvin, sample_i+1, num_of_samples, int(100*double(sample_i+1.)/double(num_of_samples)));
+                }
         }
 
 
@@ -194,6 +230,18 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
             }
         }    
     }
+ 
+#ifdef RICH_MPI
+    int ws = 0;
+    MPI_Comm_size(MPI_COMM_WORLD, &ws);
+    ReduceMatrix(S, num_energy_groups);
+    ReduceMatrix(dSdUm, num_energy_groups);
+    MPI_Allreduce(MPI_IN_PLACE, &sum_beta, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    sum_beta /= ws;
+    for(std::size_t g0=0; g0 < num_energy_groups; ++g0)
+        weight[g0] /= ws;
+    MPI_Allreduce(MPI_IN_PLACE, weight.data(), num_energy_groups, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+#endif
 
     // total weight
     double const beta_avg = sum_beta / num_of_samples;
@@ -258,14 +306,21 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
         printf("Compton temperature grid has less than two temperature points - %ld\n", temperature_grid_.size());
         exit(1);
     }
+    int rank = 0;
+#ifdef RICH_MPI
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif   
+    if(rank == 0)
     printf("setting Compton matrix tables for %ld temperatures (in kev):\n", temperature_grid_.size());
     for(std::size_t i=0; i<temperature_grid_.size(); ++i){
+        if(rank == 0)
         printf("%g ", temperature_grid_[i]/units::kev_kelvin);
         if(i>0 and temperature_grid_[i]<=temperature_grid_[i-1]){
             printf("fatal - Compton temperature grid is not monotonic\n");
             exit(1);
         }
     }
+    if(rank == 0)
     printf("\n");
 
     temperature_grid = temperature_grid_;
