@@ -96,7 +96,7 @@ class ComptonMatrixMC {
         
         std::size_t const num_of_samples;
         unsigned int const seed;
-        boost::random::variate_generator<boost::random::mt19937, boost::random::uniform_01<>> sample_uniform_01;
+        boost::random::variate_generator<boost::random::mt19937_64, boost::random::uniform_01<>> sample_uniform_01;
 
         bool const force_detailed_balance;
 

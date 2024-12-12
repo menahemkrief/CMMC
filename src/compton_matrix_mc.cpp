@@ -23,7 +23,7 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                             num_of_samples(num_of_samples_), 
                             seed(seed_ >= 0 ? seed_ : static_cast<unsigned int>(std::time(0))),
                             sample_uniform_01(
-                                boost::random::mt19937(seed),
+                                boost::random::mt19937_64(seed),
                                 boost::random::uniform_01<>()
                             ),
                             force_detailed_balance(force_detailed_balance_),
