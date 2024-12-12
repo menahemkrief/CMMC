@@ -192,7 +192,7 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
         for(std::size_t g0=0; g0<num_energy_groups; ++g0){
             // step 8a: sample energy
             double const boundry_g0 = energy_groups_boundries[g0];
-            double width = energy_groups_boundries[g0+1]-boundry_g0;
+            double width = std::min(energy_groups_boundries[g0+1]-boundry_g0, 30 * units::k_boltz*temperature);
 
             double const E0 = boundry_g0 + interp*width;
             // weight of energy sample
