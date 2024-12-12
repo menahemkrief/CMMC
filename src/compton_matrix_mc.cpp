@@ -250,8 +250,15 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
     for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
         for(std::size_t g=0; g < num_energy_groups; ++g){
             double const weight_avg = weight[g0]/num_of_samples;
+            if(weight_avg < std::numeric_limits<double>::min() * 1e40)
+            {
+                S[g0][g] = std::numeric_limits<double>::min()*1e40;
+                dSdUm[g0][g] = 0.0;
+                continue;
+            }
             S[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
             dSdUm[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
+            S[g0][g] = std::max(S[g0][g], std::numeric_limits<double>::min()*1e40);
         }
     }
 
