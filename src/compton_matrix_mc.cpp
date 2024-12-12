@@ -410,6 +410,8 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
 
             // enforce detailed balance on the interpolated matrix
             if(force_detailed_balance){
+                if(B[j]*E_i < std::numeric_limits<double>::min() * 1e40)
+                    continue;
                 double const E_j = energy_groups_centers[j];
                 double const detailed_balance_factor = (1.0+n_eq[j])*B[i]*E_j / ((1.0+n_eq[i])*B[j]*E_i);
                 
