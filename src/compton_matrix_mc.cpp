@@ -262,16 +262,13 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
         }
     }
 
-    using boost::math::cyl_bessel_k_prime;
-    using boost::math::cyl_bessel_k;
     using boost::math::pow;
     
     double const theta = units::k_boltz * temperature / units::me_c2;
     double const dtheta_dT = units::k_boltz / units::me_c2;
     
     double const theta_1 = 1.0/theta;
-    
-
+    Matrix detailed_balance_factors(num_energy_groups, Vector(num_energy_groups, 1));
     if(force_detailed_balance){
         set_Bg_ng(temperature);
         double constexpr thresh = units::sigma_thomson*std::numeric_limits<double>::epsilon()*1e3;
@@ -282,26 +279,31 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
             for(std::size_t gt=g+1; gt<num_energy_groups; ++gt){
                 if(S[gt][g] < thresh and S[g][gt] < thresh) continue;
                 
+                if(B[gt]*E_g < std::numeric_limits<double>::min() * 1e40)
+                    continue;
                 double const E_gt = energy_groups_centers[gt];
                 double const detailed_balance_factor = (1.0+n_eq[gt])*B[g]*E_gt / ((1.0+n_eq[g])*B[gt]*E_g);
                 
                 if(std::isnan(detailed_balance_factor)) continue;
 
                 if(detailed_balance_factor < 1.0){
+                    detailed_balance_factors[gt][g] = S[g][gt]*detailed_balance_factor/S[gt][g];
                     S[gt][g] = S[g][gt]*detailed_balance_factor;
                 }
                 else{
+                    detailed_balance_factors[g][gt] = S[gt][g]/(S[g][gt]*detailed_balance_factor);
                     S[g][gt] = S[gt][g]/detailed_balance_factor;
                 }
             }
         }
     }
-    
     for (std::size_t g0=0; g0 < num_energy_groups; ++g0){
         for (std::size_t g=0; g < num_energy_groups; ++g){
-            dSdUm[g0][g] *= theta_1*theta_1*dtheta_dT;
+            dSdUm[g0][g] *= theta_1*theta_1*dtheta_dT * detailed_balance_factors[g0][g];
             dSdUm[g0][g] -= S[g0][g]*dtheta_dT*theta_1;
-            dSdUm[g0][g] += S[g0][g]*(cyl_bessel_k_prime(2, theta_1)/cyl_bessel_k(2, theta_1))*theta_1*theta_1*dtheta_dT;
+            double const temp1 = (theta_1 > 100) ? (-1-0.5/theta_1-15/(8*theta_1*theta_1)+15/(8*theta_1*theta_1*theta_1)) : 
+                -0.5 * (std::cyl_bessel_k(1, theta_1) + std::cyl_bessel_k(3, theta_1)) / std::cyl_bessel_k(2, theta_1);
+            dSdUm[g0][g] += S[g0][g]*temp1*theta_1*theta_1*dtheta_dT;
             dSdUm[g0][g] *= 1.0/(4.0*units::arad*pow<3>(temperature));
         }
     }
