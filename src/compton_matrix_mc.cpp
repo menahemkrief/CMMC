@@ -41,6 +41,7 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                                  int const seed_) :
                             energy_groups_centers(energy_groups_centers_),
                             energy_groups_boundries(energy_groups_boundries_),
+                            energy_groups_width(energy_groups_centers_.size(), 0.0),
                             num_energy_groups(energy_groups_centers.size()),
                             num_of_samples(num_of_samples_), 
                             seed(seed_ >= 0 ? seed_ : static_cast<unsigned int>(std::time(0))),
@@ -53,7 +54,11 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                             S_log_tables(),
                             dSdUm_tables(),
                             n_eq(num_energy_groups, signaling_NaN),
-                            B(num_energy_groups, signaling_NaN) {
+                            B(num_energy_groups, signaling_NaN),
+                            up_scattering_last(signaling_NaN),
+                            down_scattering_last(signaling_NaN),
+                            up_scattering_last_table(),
+                            down_scattering_last_table() {
     int rank = 0;
 #ifdef RICH_MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -80,6 +85,10 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
         printf("%g ", e/units::kev);
     }
     printf("\n");    
+    }
+
+    for(std::size_t g=0; g < num_energy_groups; ++g){
+        energy_groups_width[g] = energy_groups_boundries[g+1] - energy_groups_boundries[g];
     }
 }
 
@@ -135,6 +144,9 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
             dSdUm[i][j] = 0.0;
         }
     }
+
+    up_scattering_last = 0.0;
+    down_scattering_last = 0.0;
 
     double sum_beta = 0.0;
     std::vector<double> const Omega_0(3., 0.);
@@ -220,6 +232,14 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
             if(g0 == static_cast<std::size_t>(g)){
                 S[g0][g] += sigma;
                 dSdUm[g0][g] += sigma*gamma;
+
+                if(g0+1 == num_energy_groups){
+                    if(E0 < E){
+                        up_scattering_last += sigma;
+                    } else {
+                        down_scattering_last += sigma;
+                    }
+                }
             } else {
                 double const fac = (E-E0)/(energy_groups_centers[g]-energy_groups_centers[g0]);
                 S[g0][g] += sigma*fac;
@@ -237,6 +257,8 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
     ReduceMatrix(S, num_energy_groups);
     ReduceMatrix(dSdUm, num_energy_groups);
     MPI_Allreduce(MPI_IN_PLACE, &sum_beta, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &up_scattering_last, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &down_scattering_last, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     sum_beta /= ws;
     for(std::size_t g0=0; g0 < num_energy_groups; ++g0)
         weight[g0] /= ws;
@@ -248,8 +270,8 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
     
     // multiply by sigma_thomson and normalization factors
     for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
+        double const weight_avg = weight[g0]/num_of_samples;
         for(std::size_t g=0; g < num_energy_groups; ++g){
-            double const weight_avg = weight[g0]/num_of_samples;
             if(weight_avg < std::numeric_limits<double>::min() * 1e40)
             {
                 S[g0][g] = std::numeric_limits<double>::min()*1e40;
@@ -259,6 +281,11 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
             S[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
             dSdUm[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
             S[g0][g] = std::max(S[g0][g], std::numeric_limits<double>::min()*1e40);
+
+        }
+        if(g0+1 == num_energy_groups){
+            up_scattering_last *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
+            down_scattering_last *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
         }
     }
 
@@ -336,14 +363,24 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
     S_log_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
     dSdUm_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
 
+    up_scattering_last_table = std::vector<double>(temperature_grid.size(), 0.0);
+    down_scattering_last_table = std::vector<double>(temperature_grid.size(), 0.0);
+
     for(std::size_t i=0; i < temperature_grid.size(); ++i){
         calculate_S_and_dSdUm_matrices(temperature_grid[i], S_log_tables[i], dSdUm_tables[i]);
         for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
             for(std::size_t g=0; g < num_energy_groups; ++g){
                 S_log_tables[i][g0][g] = std::log(S_log_tables[i][g0][g]);
+
+            }
+
+            if(g0+1 == num_energy_groups){
+                up_scattering_last_table[i] = up_scattering_last;
+                down_scattering_last_table[i] = down_scattering_last;
             }
         }
     }
+
     for(std::size_t i=0; i < temperature_grid.size(); ++i){
         size_t lower = i > 0 ? i - 1 : 0;
         size_t upper = i < temperature_grid.size() - 1 ? i + 1 : temperature_grid.size() - 1;
@@ -454,3 +491,30 @@ std::pair<Matrix, Matrix> ComptonMatrixMC::get_S_and_dSdUm_matrices(double const
     calculate_S_and_dSdUm_matrices(temperature, S, dSdUm);
     return std::pair(S, dSdUm);
 }
+
+std::pair<double, double> ComptonMatrixMC::get_last_group_upscattering_and_downscattering(double const temperature, double const density, double const A, double const Z){
+    auto const tmp_iterator = std::lower_bound(temperature_grid.cbegin(), temperature_grid.cend(), temperature);
+    auto const tmp_i = std::distance(temperature_grid.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
+
+    if(tmp_i+1 == static_cast<int>(temperature_grid.size())){
+        printf("temperature T=%gkev given to get_tau_matrix is too high (maximal table temperature=%gkev)\n", temperature/units::kev_kelvin, temperature_grid.back()/units::kev_kelvin);
+        exit(1);
+    }
+
+    if(tmp_i == -1){
+        printf("temperature T=%gkev given to get_tau_matrix is too low (minimal table temperature=%gkev)\n", temperature/units::kev_kelvin, temperature_grid[0]/units::kev_kelvin);
+        exit(1);
+    }
+
+    double const x = (temperature-temperature_grid[tmp_i])/(temperature_grid[tmp_i+1]-temperature_grid[tmp_i]);
+
+    double upscattering_interp = up_scattering_last_table[tmp_i]*(1. - x) + up_scattering_last_table[tmp_i+1]*x;
+    double downscattering_interp = down_scattering_last_table[tmp_i]*(1. - x) + down_scattering_last_table[tmp_i+1]*x;
+
+    double const Nelectron = density*units::Navogadro/A*Z;
+    
+    upscattering_interp *= Nelectron;
+    downscattering_interp *= Nelectron;
+
+    return std::pair(upscattering_interp, downscattering_interp);
+}  

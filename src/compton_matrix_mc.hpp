@@ -86,12 +86,15 @@ class ComptonMatrixMC {
        {
          return temperature_grid.back();
        }
-       
+
+       std::pair<double, double> get_last_group_upscattering_and_downscattering(double const temperature, double const density, double const A, double const Z);
+
     private:
         void set_Bg_ng(double const);
         
         Vector const energy_groups_centers;
         Vector const energy_groups_boundries;
+        Vector energy_groups_width;
         std::size_t const num_energy_groups;
         
         std::size_t const num_of_samples;
@@ -108,6 +111,12 @@ class ComptonMatrixMC {
         // auxiliary arrays
         std::vector<double> n_eq;
         std::vector<double> B;
+
+        double up_scattering_last;
+        double down_scattering_last;
+
+        std::vector<double> up_scattering_last_table;
+        std::vector<double> down_scattering_last_table;
 };
 
 #endif
