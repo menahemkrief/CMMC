@@ -386,17 +386,27 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
     for(std::size_t i=0; i < temperature_grid.size(); ++i){
         size_t lower = i > 0 ? i - 1 : 0;
         size_t upper = i < temperature_grid.size() - 1 ? i + 1 : temperature_grid.size() - 1;
-        while((temperature_grid[upper] - temperature_grid[lower]) < units::kev_kelvin)
+        while((temperature_grid[upper] - temperature_grid[lower]) < std::max(1e5, temperature_grid[i] * 0.2))
         {
             if(lower > 0) --lower;
             if(upper < (temperature_grid.size() - 1)) ++upper;
             if(lower == 0 && upper == (temperature_grid.size() - 1))
                 break;
         }
-        double dUm = (units::arad * (boost::math::pow<4>(temperature_grid[upper]) - boost::math::pow<4>(temperature_grid[lower])));
+        double dUm = temperature_grid[upper] -temperature_grid[lower];
         for (std::size_t g0=0; g0 < num_energy_groups; ++g0){
             for (std::size_t g=0; g < num_energy_groups; ++g){
                 dSdUm_tables[i][g0][g] = (std::exp(S_log_tables[upper][g0][g]) - std::exp(S_log_tables[lower][g0][g])) / dUm;
+            }
+
+            if(g0+1 == num_energy_groups){
+                double const dS_upper = up_scattering_last_table[upper] - down_scattering_last_table[upper];
+                double const dS_lower = up_scattering_last_table[lower] - down_scattering_last_table[lower];
+                double const dS = up_scattering_last_table[i] - down_scattering_last_table[i];
+                if((dS < 0 && dS_lower < 0 && dS_upper < 0) || (dS > 0 && dS_lower > 0 && dS_upper > 0))
+                    dSdUm_tables[i][g0][g0] = (dS_upper - dS_lower)/dUm;
+                else
+                    dSdUm_tables[i][g0][g0] = 0;
             }
         }
     }
