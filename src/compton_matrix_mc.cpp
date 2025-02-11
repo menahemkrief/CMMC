@@ -235,9 +235,9 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
 
                 if(g0+1 == num_energy_groups){
                     if(E0 < E){
-                        up_scattering_last += sigma;
+                        up_scattering_last += (E-E0)/energy_groups_centers[g0] * sigma;
                     } else {
-                        down_scattering_last += sigma;
+                        down_scattering_last += (E0-E)/energy_groups_centers[g0] * sigma;
                     }
                 }
             } else {
@@ -260,6 +260,8 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
     MPI_Allreduce(MPI_IN_PLACE, &up_scattering_last, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE, &down_scattering_last, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     sum_beta /= ws;
+    up_scattering_last /= ws;
+    down_scattering_last /= ws;
     for(std::size_t g0=0; g0 < num_energy_groups; ++g0)
         weight[g0] /= ws;
     MPI_Allreduce(MPI_IN_PLACE, weight.data(), num_energy_groups, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
