@@ -2,6 +2,7 @@
 #define __COMPTON_MATRIX_MC__
 
 #include <boost/random.hpp>
+#include <optional>
 
 using Vector = std::vector<double>;
 using Matrix = std::vector<std::vector<double>>;
@@ -25,7 +26,7 @@ public:
         Vector const energy_groups_boundries_,
         std::size_t const num_of_samples_,
         bool const force_detailed_balance_,
-        int const seed_=-1);
+        std::optional<unsigned int> const seed_=std::nullopt);
 
     /**
      * @brief Calculates the *microscopic* Compton scattering matrix at

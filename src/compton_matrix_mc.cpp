@@ -15,12 +15,12 @@ ComptonMatrixMC::ComptonMatrixMC(
     Vector const energy_groups_boundries_,
     std::size_t const num_of_samples_,
     bool const force_detailed_balance_,
-    int const seed_) :
+    std::optional<unsigned int> const seed_) :
     energy_groups_centers(energy_groups_centers_),
     energy_groups_boundries(energy_groups_boundries_),
     num_energy_groups(energy_groups_centers.size()),
     num_of_samples(num_of_samples_),
-    seed(seed_ >= 0 ? seed_ : static_cast<unsigned int>(std::time(0))),
+    seed(seed_ ? seed_.value() : static_cast<unsigned int>(std::time(0))),
     sample_uniform_01(
         boost::random::mt19937(seed),
         boost::random::uniform_01<>()
