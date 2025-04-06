@@ -7,8 +7,6 @@
 #include "planck_integral/planck_integral.hpp"
 
 #include <boost/math/special_functions/pow.hpp>
-#include <boost/math/special_functions/bessel.hpp>
-#include <boost/math/special_functions/bessel_prime.hpp>
 #ifdef RICH_MPI
     #include <mpi.h>
 #endif
@@ -293,10 +291,6 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
 
     using boost::math::pow;
     
-    double const theta = units::k_boltz * temperature / units::me_c2;
-    double const dtheta_dT = units::k_boltz / units::me_c2;
-    
-    double const theta_1 = 1.0/theta;
     Matrix detailed_balance_factors(num_energy_groups, Vector(num_energy_groups, 1));
     if(force_detailed_balance){
         set_Bg_ng(temperature);
@@ -324,16 +318,6 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
                     S[g][gt] = S[gt][g]/detailed_balance_factor;
                 }
             }
-        }
-    }
-    for (std::size_t g0=0; g0 < num_energy_groups; ++g0){
-        for (std::size_t g=0; g < num_energy_groups; ++g){
-            dSdUm[g0][g] *= theta_1*theta_1*dtheta_dT * detailed_balance_factors[g0][g];
-            dSdUm[g0][g] -= S[g0][g]*dtheta_dT*theta_1;
-            double const temp1 = (theta_1 > 100) ? (-1-0.5/theta_1-15/(8*theta_1*theta_1)+15/(8*theta_1*theta_1*theta_1)) : 
-                -0.5 * (std::cyl_bessel_k(1, theta_1) + std::cyl_bessel_k(3, theta_1)) / std::cyl_bessel_k(2, theta_1);
-            dSdUm[g0][g] += S[g0][g]*temp1*theta_1*theta_1*dtheta_dT;
-            dSdUm[g0][g] *= 1.0/(4.0*units::arad*pow<3>(temperature));
         }
     }
 }
