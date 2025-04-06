@@ -73,17 +73,33 @@ class ComptonMatrixMC {
         * @return double the sampled value of gamma
         */
        double sample_gamma(double const temperature);
-    
+
+       /**
+        * @brief Retrieves the maximum temperature from the temperature grid.
+        * 
+        * This function returns the last element of the temperature grid, 
+        * which represents the highest temperature value stored in the grid.
+        * 
+        * @return double The maximum temperature value in the temperature grid.
+        */
+       double get_maximum_temperature_grid() const
+       {
+         return temperature_grid.back();
+       }
+
+       std::pair<double, double> get_last_group_upscattering_and_downscattering(double const temperature, double const density, double const A, double const Z);
+
     private:
         void set_Bg_ng(double const);
         
         Vector const energy_groups_centers;
         Vector const energy_groups_boundries;
+        Vector energy_groups_width;
         std::size_t const num_energy_groups;
         
         std::size_t const num_of_samples;
         unsigned int const seed;
-        boost::random::variate_generator<boost::random::mt19937, boost::random::uniform_01<>> sample_uniform_01;
+        boost::random::variate_generator<boost::random::mt19937_64, boost::random::uniform_01<>> sample_uniform_01;
 
         bool const force_detailed_balance;
 
@@ -95,6 +111,12 @@ class ComptonMatrixMC {
         // auxiliary arrays
         std::vector<double> n_eq;
         std::vector<double> B;
+
+        double up_scattering_last;
+        double down_scattering_last;
+
+        std::vector<double> up_scattering_last_table;
+        std::vector<double> down_scattering_last_table;
 };
 
 #endif
