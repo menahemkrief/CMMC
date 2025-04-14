@@ -19,8 +19,17 @@ namespace machine_limits {
 #ifdef RICH_MPI
 namespace
 {
-    void ReduceMatrixSum(Matrix &S, size_t const num_energy_groups)
-    {
+    /**
+    * @brief Reduces a matrix sum across MPI processes.
+    *
+    * This function reduces a matrix sum across MPI processes. It takes a matrix `S` and its dimensions `num_energy_groups` and performs an all-reduce operation on each element of the matrix.
+    *
+    * @param[in,out] S The matrix to be reduced. The matrix is modified in-place.
+    * @note There is an implicit assumption that the matrix is a square matrix.
+    */
+    void ReduceMatrixSum(Matrix &S){
+        std::size_t num_energy_groups = S.size();
+
         int world_size = 0;
         MPI_Comm_size(MPI_COMM_WORLD, &world_size);
         std::vector<double> send_vector(num_energy_groups * num_energy_groups, 0);
