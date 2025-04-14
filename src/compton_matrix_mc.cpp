@@ -18,16 +18,23 @@ namespace
 {
     void ReduceMatrix(Matrix &S, size_t const num_energy_groups)
     {
-        int ws = 0;
-        MPI_Comm_size(MPI_COMM_WORLD, &ws);
+        int world_size = 0;
+        MPI_Comm_size(MPI_COMM_WORLD, &world_size);
         std::vector<double> send_vector(num_energy_groups * num_energy_groups, 0);
-        for(std::size_t g0=0; g0 < num_energy_groups; ++g0)
-            for(std::size_t g=0; g < num_energy_groups; ++g)
+
+        for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
+            for(std::size_t g=0; g < num_energy_groups; ++g){
                 send_vector[g0*num_energy_groups + g] = S[g0][g];
+            }
+        }
+        
         MPI_Allreduce(MPI_IN_PLACE, send_vector.data(), num_energy_groups * num_energy_groups, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        for(std::size_t g0=0; g0 < num_energy_groups; ++g0)
-            for(std::size_t g=0; g < num_energy_groups; ++g)
-                S[g0][g] = send_vector[g0*num_energy_groups + g] / ws;
+        
+        for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
+            for(std::size_t g=0; g < num_energy_groups; ++g){
+                S[g0][g] = send_vector[g0*num_energy_groups + g] / world_size;
+            }
+        }
     }
 }
 #endif
@@ -250,18 +257,18 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
     }
  
 #ifdef RICH_MPI
-    int ws = 0;
-    MPI_Comm_size(MPI_COMM_WORLD, &ws);
+    int world_size = 0;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     ReduceMatrix(S, num_energy_groups);
     ReduceMatrix(dSdUm, num_energy_groups);
     MPI_Allreduce(MPI_IN_PLACE, &sum_beta, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE, &up_scattering_last, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE, &down_scattering_last, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    sum_beta /= ws;
-    up_scattering_last /= ws;
-    down_scattering_last /= ws;
+    sum_beta /= world_size;
+    up_scattering_last /= world_size;
+    down_scattering_last /= world_size;
     for(std::size_t g0=0; g0 < num_energy_groups; ++g0)
-        weight[g0] /= ws;
+        weight[g0] /= world_size;
     MPI_Allreduce(MPI_IN_PLACE, weight.data(), num_energy_groups, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
