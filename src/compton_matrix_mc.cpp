@@ -11,7 +11,10 @@
     #include <mpi.h>
 #endif
 
-static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_NaN();
+namespace machine_limits {
+    static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_NaN();
+    static double constexpr min_double = 1024.*std::numeric_limits<double>::min();
+}
 
 #ifdef RICH_MPI
 namespace
@@ -58,10 +61,10 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                             temperature_grid(),
                             S_log_tables(),
                             dSdUm_tables(),
-                            n_eq(num_energy_groups, signaling_NaN),
-                            B(num_energy_groups, signaling_NaN),
-                            up_scattering_last(signaling_NaN),
-                            down_scattering_last(signaling_NaN),
+                            n_eq(num_energy_groups, machine_limits::signaling_NaN),
+                            B(num_energy_groups, machine_limits::signaling_NaN),
+                            up_scattering_last(machine_limits::signaling_NaN),
+                            down_scattering_last(machine_limits::signaling_NaN),
                             up_scattering_last_table(),
                             down_scattering_last_table() {
     int rank = 0;
