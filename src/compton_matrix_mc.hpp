@@ -21,6 +21,7 @@ class ComptonMatrixMC {
      * @param seed_ - if given non-negative value - sets the seed of the random number generator - to enable bit-by-bit reproducible results.
      */
         ComptonMatrixMC(
+            Vector const compton_temperatures_,
             Vector const energy_groups_centers_, 
             Vector const energy_groups_boundries_, 
             std::size_t const num_of_samples_, 
@@ -40,14 +41,6 @@ class ComptonMatrixMC {
         
         std::pair<Matrix, Matrix> get_S_and_dSdUm_matrices(double const temperature);
 
-        /**
-         * @brief Given a set of temperatures, calculates and store the S matrices, so 
-         * that tau matrices can be calculated for other temperatures using interpolation between 
-         * the given temperatures (using the `get_tau_matrix` functions).
-         * @param temperature_grid - a set of temperatures [K]
-         * @return * void 
-         */
-        void set_tables(std::vector<double> const& temperature_grid_);
         
         /**
          * @brief Get the Compton tau matrix - which is the macroscopic cross secion for Compton scattering
@@ -84,11 +77,19 @@ class ComptonMatrixMC {
        double get_maximum_temperature_grid() const
        {
          return temperature_grid.back();
-       }
-
-       std::pair<double, double> get_last_group_upscattering_and_downscattering(double const temperature, double const density, double const A, double const Z);
-
-    private:
+        }
+        
+        std::pair<double, double> get_last_group_upscattering_and_downscattering(double const temperature, double const density, double const A, double const Z);
+        
+      private:
+        /**
+         * @brief Given a set of temperatures, calculates and store the S matrices, so 
+         * that tau matrices can be calculated for other temperatures using interpolation between 
+         * the given temperatures (using the `get_tau_matrix` functions).
+         * @param temperature_grid - a set of temperatures [K]
+         * @return * void 
+         */
+        void set_tables(std::vector<double> const& temperature_grid_);
         /*!
         @brief force detailed balance at `temperature` for `mat`
         @param temperature at which to force detailed balance
@@ -102,6 +103,7 @@ class ComptonMatrixMC {
         */
         void calculate_Bg_ng(double const temperature);
         
+        Vector const compton_temperatures;
         Vector const energy_groups_centers;
         Vector const energy_groups_boundries;
         Vector energy_groups_width;

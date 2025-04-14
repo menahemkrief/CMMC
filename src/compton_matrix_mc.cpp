@@ -42,10 +42,12 @@ namespace
 }
 #endif
 
-ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_, 
+ComptonMatrixMC::ComptonMatrixMC(Vector const compton_temperatures_,
+                                 Vector const energy_groups_centers_, 
                                  Vector const energy_groups_boundries_, 
                                  std::size_t const num_of_samples_, 
                                  std::optional<unsigned int> const seed_) :
+                            compton_temperatures(compton_temperatures_),
                             energy_groups_centers(energy_groups_centers_),
                             energy_groups_boundries(energy_groups_boundries_),
                             energy_groups_width(energy_groups_centers_.size(), 0.0),
@@ -99,6 +101,8 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
     for(std::size_t g=0; g < num_energy_groups; ++g){
         energy_groups_width[g] = energy_groups_boundries[g+1] - energy_groups_boundries[g];
     }
+
+    set_tables(compton_temperatures);
 }
 
 double ComptonMatrixMC::sample_gamma(double const temperature){
