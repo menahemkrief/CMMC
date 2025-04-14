@@ -364,6 +364,8 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid){
     for(std::size_t i=0; i < temperature_grid.size(); ++i){
         size_t lower = i > 0 ? i - 1 : 0;
         size_t upper = i < temperature_grid.size() - 1 ? i + 1 : temperature_grid.size() - 1;
+        
+        // to calculate dSdUm numerically at `T` we find the limits around the point s.t. T in [T_lower, T_upper] and T_upper - T_lower > max(1e5, temperature_grid[i] * 0.2)
         while((temperature_grid[upper] - temperature_grid[lower]) < std::max(1e5, temperature_grid[i] * 0.2))
         {
             if(lower > 0) --lower;
