@@ -45,7 +45,6 @@ namespace
 ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_, 
                                  Vector const energy_groups_boundries_, 
                                  std::size_t const num_of_samples_, 
-                                 bool const force_detailed_balance_,
                                  std::optional<unsigned int> const seed_) :
                             energy_groups_centers(energy_groups_centers_),
                             energy_groups_boundries(energy_groups_boundries_),
@@ -57,7 +56,6 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                                 boost::random::mt19937_64(seed),
                                 boost::random::uniform_01<>()
                             ),
-                            force_detailed_balance(force_detailed_balance_),
                             temperature_grid(),
                             S_log_tables(),
                             dSdUm_tables(),
@@ -129,7 +127,7 @@ double ComptonMatrixMC::sample_gamma(double const temperature){
     return 1.0 - theta*std::log(r1);
 }
 
-void ComptonMatrixMC::set_Bg_ng(double const temperature){
+void ComptonMatrixMC::calculate_Bg_ng(double const temperature){
     using boost::math::pow;
     double constexpr fac = pow<3>(units::clight) / (8.0*M_PI*units::planck_constant);
     for(std::size_t g=0; g < num_energy_groups; ++g){
@@ -309,37 +307,7 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
         }
     }
 
-    using boost::math::pow;
-    
-    Matrix detailed_balance_factors(num_energy_groups, Vector(num_energy_groups, 1));
-    if(force_detailed_balance){
-        set_Bg_ng(temperature);
-        double constexpr thresh = units::sigma_thomson*std::numeric_limits<double>::epsilon()*1e3;
-
-        for(std::size_t g=0; g < num_energy_groups; ++g){
-            double const E_g = energy_groups_centers[g];
-            
-            for(std::size_t gt=g+1; gt<num_energy_groups; ++gt){
-                if(S[gt][g] < thresh and S[g][gt] < thresh) continue;
-                
-                if(B[gt]*E_g < std::numeric_limits<double>::min() * 1e40)
-                    continue;
-                double const E_gt = energy_groups_centers[gt];
-                double const detailed_balance_factor = (1.0+n_eq[gt])*B[g]*E_gt / ((1.0+n_eq[g])*B[gt]*E_g);
-                
-                if(std::isnan(detailed_balance_factor)) continue;
-
-                if(detailed_balance_factor < 1.0){
-                    detailed_balance_factors[gt][g] = S[g][gt]*detailed_balance_factor/S[gt][g];
-                    S[gt][g] = S[g][gt]*detailed_balance_factor;
-                }
-                else{
-                    detailed_balance_factors[g][gt] = S[gt][g]/(S[g][gt]*detailed_balance_factor);
-                    S[g][gt] = S[gt][g]/detailed_balance_factor;
-                }
-            }
-        }
-    }
+    enforce_detailed_balance(temperature, S);
 }
 
 void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
@@ -446,39 +414,11 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
         }
     }
 
-    if(force_detailed_balance) set_Bg_ng(temperature);
-
     double const x = (temperature-temperature_grid[tmp_i])/(temperature_grid[tmp_i+1]-temperature_grid[tmp_i]);
     for(std::size_t i = 0; i < num_energy_groups; ++i){
-        double const E_i = energy_groups_centers[i];
-
-        for(std::size_t j=i; j < num_energy_groups; ++j){
+        for(std::size_t j=0; j < num_energy_groups; ++j){
             tau[i][j] = std::exp(S_log_tables[tmp_i][i][j])*(1. - x) + std::exp(S_log_tables[tmp_i+1][i][j])*x;
             dtau_dUm[i][j] = dSdUm_tables[tmp_i][i][j]*(1. - x) + dSdUm_tables[tmp_i+1][i][j]*x;
-
-            if(i == j) continue;
-            
-            tau[j][i] = std::exp(S_log_tables[tmp_i][j][i])*(1. - x) + std::exp(S_log_tables[tmp_i+1][j][i])*x;
-            dtau_dUm[j][i] = dSdUm_tables[tmp_i][j][i]*(1. - x) + dSdUm_tables[tmp_i+1][j][i]*x;
-
-            // enforce detailed balance on the interpolated matrix
-            if(force_detailed_balance){
-                if(B[j]*E_i < std::numeric_limits<double>::min() * 1e40)
-                    continue;
-                double const E_j = energy_groups_centers[j];
-                double const detailed_balance_factor = (1.0+n_eq[j])*B[i]*E_j / ((1.0+n_eq[i])*B[j]*E_i);
-                
-                if(std::isnan(detailed_balance_factor)) continue;
-                
-                if(detailed_balance_factor < 1.0) {
-                    tau[j][i] = tau[i][j]*detailed_balance_factor;
-                } else {
-                    tau[i][j] = tau[j][i]/detailed_balance_factor;
-                }
-            } 
-            else{
-                tau[j][i] = std::exp(S_log_tables[tmp_i][j][i])*(1. - x) + std::exp(S_log_tables[tmp_i+1][j][i])*x;
-            }
         }
     }
 
@@ -489,6 +429,9 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
             dtau_dUm[i][j] *= Nelectron;
         }
     }
+
+    enforce_detailed_balance(temperature, tau);
+    enforce_detailed_balance(temperature, dtau_dUm);
 }
 
 Matrix ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z){
@@ -534,3 +477,27 @@ std::pair<double, double> ComptonMatrixMC::get_last_group_upscattering_and_downs
 
     return std::pair(upscattering_interp, downscattering_interp);
 }  
+
+void ComptonMatrixMC::enforce_detailed_balance(double const temperature, Matrix& mat){
+    calculate_Bg_ng(temperature);
+    for(std::size_t g=0; g<num_energy_groups; ++g){
+        double const E_g = energy_groups_centers[g];
+        
+        for(std::size_t gt=0; gt < g; ++gt){ // notice it is gt < *g*
+            
+            if(B[gt] < machine_limits::min_double){
+                mat[g][gt] = 0.0;
+                mat[gt][g] = 0.0;
+            } else {
+                double const E_gt = energy_groups_centers[gt];
+                double const detailed_balance_factor = (1.0+n_eq[gt])*B[g]*E_gt / ((1.0+n_eq[g])*B[gt]*E_g);
+
+                if(detailed_balance_factor < 1.0) {
+                    mat[gt][g] = mat[g][gt]*detailed_balance_factor;
+                } else {
+                    mat[g][gt] = mat[gt][g]/detailed_balance_factor;
+                }
+            }
+        }
+    }
+}
