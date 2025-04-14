@@ -370,8 +370,8 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid){
         {
             if(lower > 0) --lower;
             if(upper < (temperature_grid.size() - 1)) ++upper;
-            if(lower == 0 && upper == (temperature_grid.size() - 1))
-                break;
+            
+            if(lower == 0 && upper == (temperature_grid.size() - 1)) break;
         }
         double dUm = temperature_grid[upper] -temperature_grid[lower];
         for (std::size_t g0=0; g0 < num_energy_groups; ++g0){
