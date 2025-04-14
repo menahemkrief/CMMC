@@ -122,7 +122,6 @@ class ComptonMatrixMC {
         boost::random::variate_generator<boost::random::mt19937_64, boost::random::uniform_01<>> sample_uniform_01;
 
         // tabulation
-        Vector temperature_grid;
         std::vector<Matrix> S_tables;
         std::vector<Matrix> dSdUm_tables;
 

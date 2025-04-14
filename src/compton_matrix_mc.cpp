@@ -58,7 +58,6 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const compton_temperatures_,
                                 boost::random::mt19937_64(seed),
                                 boost::random::uniform_01<>()
                             ),
-                            temperature_grid(),
                             S_tables(),
                             dSdUm_tables(),
                             n_eq(num_energy_groups, machine_limits::signaling_NaN),
@@ -314,10 +313,10 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
     enforce_detailed_balance(temperature, S);
 }
 
-void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
+void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid){
 
-    if(temperature_grid_.size()<2){
-        printf("Compton temperature grid has less than two temperature points - %ld\n", temperature_grid_.size());
+    if(temperature_grid.size()<2){
+        printf("Compton temperature grid has less than two temperature points - %ld\n", temperature_grid.size());
         exit(1);
     }
     int rank = 0;
@@ -325,11 +324,11 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif   
     if(rank == 0)
-    printf("setting Compton matrix tables for %ld temperatures (in kev):\n", temperature_grid_.size());
-    for(std::size_t i=0; i<temperature_grid_.size(); ++i){
+    printf("setting Compton matrix tables for %ld temperatures (in kev):\n", temperature_grid.size());
+    for(std::size_t i=0; i<temperature_grid.size(); ++i){
         if(rank == 0)
-        printf("%g ", temperature_grid_[i]/units::kev_kelvin);
-        if(i>0 and temperature_grid_[i]<=temperature_grid_[i-1]){
+        printf("%g ", temperature_grid[i]/units::kev_kelvin);
+        if(i>0 and temperature_grid[i]<=temperature_grid[i-1]){
             printf("fatal - Compton temperature grid is not monotonic\n");
             exit(1);
         }
@@ -337,7 +336,6 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
     if(rank == 0)
     printf("\n");
 
-    temperature_grid = temperature_grid_;
     S_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
     dSdUm_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
 
@@ -388,16 +386,16 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
 }
 
 void ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau, Matrix& dtau_dUm){
-    auto const tmp_iterator = std::lower_bound(temperature_grid.cbegin(), temperature_grid.cend(), temperature);
-    auto const tmp_i = std::distance(temperature_grid.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
+    auto const tmp_iterator = std::lower_bound(compton_temperatures.cbegin(), compton_temperatures.cend(), temperature);
+    auto const tmp_i = std::distance(compton_temperatures.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
 
-    if(tmp_i+1 == static_cast<int>(temperature_grid.size())){
-        printf("temperature T=%gkev given to get_tau_matrix is too high (maximal table temperature=%gkev)\n", temperature/units::kev_kelvin, temperature_grid.back()/units::kev_kelvin);
+    if(tmp_i+1 == static_cast<int>(compton_temperatures.size())){
+        printf("temperature T=%gkev given to get_tau_matrix is too high (maximal table temperature=%gkev)\n", temperature/units::kev_kelvin, compton_temperatures.back()/units::kev_kelvin);
         exit(1);
     }
 
     if(tmp_i == -1){
-        printf("temperature T=%gkev given to get_tau_matrix is too low (minimal table temperature=%gkev)\n", temperature/units::kev_kelvin, temperature_grid[0]/units::kev_kelvin);
+        printf("temperature T=%gkev given to get_tau_matrix is too low (minimal table temperature=%gkev)\n", temperature/units::kev_kelvin, compton_temperatures[0]/units::kev_kelvin);
         exit(1);
     }
 
@@ -413,7 +411,7 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
         }
     }
 
-    double const x = (temperature-temperature_grid[tmp_i])/(temperature_grid[tmp_i+1]-temperature_grid[tmp_i]);
+    double const x = (temperature-compton_temperatures[tmp_i])/(compton_temperatures[tmp_i+1]-compton_temperatures[tmp_i]);
     for(std::size_t i = 0; i < num_energy_groups; ++i){
         for(std::size_t j=0; j < num_energy_groups; ++j){
             tau[i][j] = S_tables[tmp_i][i][j]*(1. - x) + S_tables[tmp_i+1][i][j]*x;
@@ -447,24 +445,24 @@ std::pair<Matrix, Matrix> ComptonMatrixMC::get_S_and_dSdUm_matrices(double const
     Matrix dSdUm(num_energy_groups, Vector(num_energy_groups, 0.0));
 
     calculate_S_and_dSdUm_matrices(temperature, S, dSdUm);
-    return std::pair(S, dSdUm);
+    return {S, dSdUm};
 }
 
 std::pair<double, double> ComptonMatrixMC::get_last_group_upscattering_and_downscattering(double const temperature, double const density, double const A, double const Z){
-    auto const tmp_iterator = std::lower_bound(temperature_grid.cbegin(), temperature_grid.cend(), temperature);
-    auto const tmp_i = std::distance(temperature_grid.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
+    auto const tmp_iterator = std::lower_bound(compton_temperatures.cbegin(), compton_temperatures.cend(), temperature);
+    auto const tmp_i = std::distance(compton_temperatures.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
 
-    if(tmp_i+1 == static_cast<int>(temperature_grid.size())){
-        printf("temperature T=%gkev given to get_tau_matrix is too high (maximal table temperature=%gkev)\n", temperature/units::kev_kelvin, temperature_grid.back()/units::kev_kelvin);
+    if(tmp_i+1 == static_cast<int>(compton_temperatures.size())){
+        printf("temperature T=%gkev given to get_tau_matrix is too high (maximal table temperature=%gkev)\n", temperature/units::kev_kelvin, compton_temperatures.back()/units::kev_kelvin);
         exit(1);
     }
 
     if(tmp_i == -1){
-        printf("temperature T=%gkev given to get_tau_matrix is too low (minimal table temperature=%gkev)\n", temperature/units::kev_kelvin, temperature_grid[0]/units::kev_kelvin);
+        printf("temperature T=%gkev given to get_tau_matrix is too low (minimal table temperature=%gkev)\n", temperature/units::kev_kelvin, compton_temperatures[0]/units::kev_kelvin);
         exit(1);
     }
 
-    double const x = (temperature-temperature_grid[tmp_i])/(temperature_grid[tmp_i+1]-temperature_grid[tmp_i]);
+    double const x = (temperature-compton_temperatures[tmp_i])/(compton_temperatures[tmp_i+1]-compton_temperatures[tmp_i]);
 
     double upscattering_interp = up_scattering_last_table[tmp_i]*(1. - x) + up_scattering_last_table[tmp_i+1]*x;
     double downscattering_interp = down_scattering_last_table[tmp_i]*(1. - x) + down_scattering_last_table[tmp_i+1]*x;
