@@ -74,13 +74,19 @@ class ComptonMatrixMC {
         * 
         * @return double The maximum temperature value in the temperature grid.
         */
-       double get_maximum_temperature_grid() const
-       {
-         return temperature_grid.back();
-        }
+       double get_maximum_compton_temperature() const { return compton_temperatures.back();}
         
         std::pair<double, double> get_last_group_upscattering_and_downscattering(double const temperature, double const density, double const A, double const Z);
         
+        Vector get_compton_temperatures() const { return compton_temperatures; }
+        Vector get_energy_groups_centers() const { return energy_groups_centers; }
+        Vector get_energy_groups_width() const { return energy_groups_width; }
+        Vector get_energy_groups_boundries() const { return energy_groups_boundries; }
+        std::size_t get_num_energy_groups() const { return num_energy_groups; }
+        std::size_t get_num_of_samples() const { return num_of_samples; }
+        unsigned int get_seed() const { return seed; }
+        std::vector<Matrix> get_S_tables() const { return S_tables; }
+        std::vector<Matrix> get_dSdUm_tables() const { return dSdUm_tables; }
       private:
         /**
          * @brief Given a set of temperatures, calculates and store the S matrices, so 
