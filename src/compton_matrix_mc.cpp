@@ -16,7 +16,7 @@ static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_N
 #ifdef RICH_MPI
 namespace
 {
-    void ReduceMatrix(Matrix &S, size_t const num_energy_groups)
+    void ReduceMatrixSum(Matrix &S, size_t const num_energy_groups)
     {
         int world_size = 0;
         MPI_Comm_size(MPI_COMM_WORLD, &world_size);
@@ -259,16 +259,23 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
 #ifdef RICH_MPI
     int world_size = 0;
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    ReduceMatrix(S, num_energy_groups);
-    ReduceMatrix(dSdUm, num_energy_groups);
+    
+    // 
+    ReduceMatrixSum(S, num_energy_groups);
+    ReduceMatrixSum(dSdUm, num_energy_groups);
+    
     MPI_Allreduce(MPI_IN_PLACE, &sum_beta, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE, &up_scattering_last, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE, &down_scattering_last, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    
     sum_beta /= world_size;
     up_scattering_last /= world_size;
     down_scattering_last /= world_size;
-    for(std::size_t g0=0; g0 < num_energy_groups; ++g0)
+    
+    for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
         weight[g0] /= world_size;
+    }
+
     MPI_Allreduce(MPI_IN_PLACE, weight.data(), num_energy_groups, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
