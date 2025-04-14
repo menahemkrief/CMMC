@@ -68,8 +68,11 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
 #ifdef RICH_MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     sample_uniform_01.engine().seed(seed + rank);
+    if(rank == 0) printf("ComptonMatrixMC initialized with MPI. Seed=%d\n", seed);
+#else
+    printf("ComptonMatrixMC initialized without MPI. Seed=%d\n", seed);
 #endif
-    // printf("Generating a ComptonMatrixMC object... seed=%d\n", seed);
+
     if(num_energy_groups + 1 != energy_groups_boundries.size()){
         printf("ComptonMatrixMC fatal - inconsistent number of energy group boundaries and centers\n");
         exit(1);
