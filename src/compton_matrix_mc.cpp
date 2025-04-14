@@ -59,7 +59,7 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const compton_temperatures_,
                                 boost::random::uniform_01<>()
                             ),
                             temperature_grid(),
-                            S_log_tables(),
+                            S_tables(),
                             dSdUm_tables(),
                             n_eq(num_energy_groups, machine_limits::signaling_NaN),
                             B(num_energy_groups, machine_limits::signaling_NaN),
@@ -338,20 +338,15 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
     printf("\n");
 
     temperature_grid = temperature_grid_;
-    S_log_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
+    S_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
     dSdUm_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
 
     up_scattering_last_table = std::vector<double>(temperature_grid.size(), 0.0);
     down_scattering_last_table = std::vector<double>(temperature_grid.size(), 0.0);
 
     for(std::size_t i=0; i < temperature_grid.size(); ++i){
-        calculate_S_and_dSdUm_matrices(temperature_grid[i], S_log_tables[i], dSdUm_tables[i]);
+        calculate_S_and_dSdUm_matrices(temperature_grid[i], S_tables[i], dSdUm_tables[i]);
         for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
-            for(std::size_t g=0; g < num_energy_groups; ++g){
-                S_log_tables[i][g0][g] = std::log(S_log_tables[i][g0][g]);
-
-            }
-
             if(g0+1 == num_energy_groups){
                 up_scattering_last_table[i] = up_scattering_last;
                 down_scattering_last_table[i] = down_scattering_last;
@@ -372,7 +367,7 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
         double dUm = temperature_grid[upper] -temperature_grid[lower];
         for (std::size_t g0=0; g0 < num_energy_groups; ++g0){
             for (std::size_t g=0; g < num_energy_groups; ++g){
-                dSdUm_tables[i][g0][g] = (std::exp(S_log_tables[upper][g0][g]) - std::exp(S_log_tables[lower][g0][g])) / dUm;
+                dSdUm_tables[i][g0][g] = (S_tables[upper][g0][g] - S_tables[lower][g0][g]) / dUm;
             }
 
             if(g0+1 == num_energy_groups){
@@ -421,7 +416,7 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
     double const x = (temperature-temperature_grid[tmp_i])/(temperature_grid[tmp_i+1]-temperature_grid[tmp_i]);
     for(std::size_t i = 0; i < num_energy_groups; ++i){
         for(std::size_t j=0; j < num_energy_groups; ++j){
-            tau[i][j] = std::exp(S_log_tables[tmp_i][i][j])*(1. - x) + std::exp(S_log_tables[tmp_i+1][i][j])*x;
+            tau[i][j] = S_tables[tmp_i][i][j]*(1. - x) + S_tables[tmp_i+1][i][j]*x;
             dtau_dUm[i][j] = dSdUm_tables[tmp_i][i][j]*(1. - x) + dSdUm_tables[tmp_i+1][i][j]*x;
         }
     }

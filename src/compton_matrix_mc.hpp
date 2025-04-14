@@ -103,24 +103,26 @@ class ComptonMatrixMC {
         */
         void calculate_Bg_ng(double const temperature);
         
-        Vector const compton_temperatures;
+        Vector const compton_temperatures; // temperature grid for the compston tables
+
         Vector const energy_groups_centers;
         Vector const energy_groups_boundries;
         Vector energy_groups_width;
         std::size_t const num_energy_groups;
         
-        std::size_t const num_of_samples;
+        std::size_t const num_of_samples; // number of samples of the Monte Carlo integration
+        
         unsigned int const seed;
         boost::random::variate_generator<boost::random::mt19937_64, boost::random::uniform_01<>> sample_uniform_01;
 
         // tabulation
         Vector temperature_grid;
-        std::vector<Matrix> S_log_tables;
+        std::vector<Matrix> S_tables;
         std::vector<Matrix> dSdUm_tables;
 
         // auxiliary arrays
-        std::vector<double> n_eq;
-        std::vector<double> B;
+        std::vector<double> n_eq; // temporary array to avoid repeated allocations, occupancy number at equilibrium
+        std::vector<double> B; // temporary array to avoid repeated allocations, group energy density at equilibrium (i.e. the integral on the planck function)
 
         double up_scattering_last;
         double down_scattering_last;
