@@ -328,7 +328,7 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid){
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif   
     if(rank == 0)
-    printf("setting Compton matrix tables for %ld temperatures (in kev):\n", temperature_grid.size());
+    printf("Setting Compton matrix tables for %ld temperatures (in kev):\n", temperature_grid.size());
     for(std::size_t i=0; i<temperature_grid.size(); ++i){
         if(rank == 0)
         printf("%g ", temperature_grid[i]/units::kev_kelvin);
