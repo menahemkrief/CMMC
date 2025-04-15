@@ -489,12 +489,11 @@ Matrix ComptonMatrixMC::get_tau_matrix(double const temperature, double const de
     return tau;
 }
 
-std::pair<Matrix, Matrix> ComptonMatrixMC::get_S_and_dSdUm_matrices(double const temperature){
+Matrix ComptonMatrixMC::get_S_matrix(double const temperature){
     Matrix S(num_energy_groups, Vector(num_energy_groups, 0.0));
-    Matrix dSdUm(num_energy_groups, Vector(num_energy_groups, 0.0));
 
-    calculate_S_and_dSdUm_matrices(temperature, S, dSdUm);
-    return {S, dSdUm};
+    calculate_S_matrix(temperature, S);
+    return S;
 }
 
 std::pair<double, double> ComptonMatrixMC::get_last_group_upscattering_and_downscattering(double const temperature, double const density, double const A, double const Z){
