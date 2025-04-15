@@ -22,7 +22,6 @@ planck_integral_exact = np.vectorize(
 )
 
 def check_dimensionless_integral():
-
     for xb in [
 
         np.array([1e-10,1e-8,1e-5,1e-3,1e-2,0.05,0.5,0.7,1.1,2.,2.5,3.1,3.8,4.4,5.1,6.,7.,15.,20.,50.,100.]),
@@ -38,9 +37,7 @@ def check_dimensionless_integral():
         int_aprx = np.array([planck_integral.planck_integral(a=xb[i], b=xb[i+1]) for i in range(G)])
         int_ex = np.array([planck_integral_exact(xb[i], xb[i+1]) for i in range(G)])
 
-        print("sum", sum(int_aprx))
-        for i in range(G):
-            print(f"G={i+1} [x1,x2]=[{xb[i]:.5g} {xb[i+1]:.5g}] approx={int_aprx[i]} exact={int_ex[i]} err={abs(int_aprx[i]/int_ex[i]-1.):g}")
+        # for i in range(G): print(f"G={i+1} [x1,x2]=[{xb[i]:.5g} {xb[i+1]:.5g}] approx={int_aprx[i]:g} exact={int_ex[i]:g} err={abs(int_aprx[i]/int_ex[i]-1.):g}")
 
         dx = np.diff(xb)
         plt.figure("pl")
@@ -65,20 +62,11 @@ def check_dimensionless_integral():
         plt.show()
 
 def check_dimensional_integral():
-    # some prints
-    print(planck_integral.planck_integral(a=20,b=300.))
-    print(planck_integral.planck_integral(a=1e-4,b=3000.))
-
     T = 50*units.kev_kelvin
     E_low=0.001*units.kev
     E_high=500*units.kev
 
     Eg = planck_integral.planck_energy_density_group_integral(E_low=E_low, E_high=E_high, T=T)
-    aT4 = units.arad*T**4
-    print(Eg)
-    print(aT4)
-    print(Eg/aT4)
-    print(planck_integral.planck_integral(a=E_low/(units.k_boltz*T),b=E_high/(units.k_boltz*T)))
 
     # ---- compare the group integrated Planck spectrum to the pointwise Planck spectra
     T = 10*units.kev_kelvin
