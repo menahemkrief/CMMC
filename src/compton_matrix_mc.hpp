@@ -50,12 +50,26 @@ class ComptonMatrixMC {
          * @param density - the given mass density
          * @param A  - the given atomic wieght
          * @param Z - the average number of free electrons per nucleous (ionization)
-         * @param tau - the resulting Compton tau marix (units of 1/cm).
-         * @param dtau_dUm the derivative of tau with respect to aT^4
+         * @param[in out] tau - the resulting Compton tau marix (units of 1/cm).
          */
-        void get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau, Matrix& dtau_dUm);
+        void get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau);
 
         Matrix get_tau_matrix(double const temperature, double const density, double const A, double const Z);
+        
+        /**
+         * @brief Get the Compton tau matrix - which is the macroscopic cross secion for Compton scattering
+         * The result is calculated for the given temperature by interpolation over the set of temperatures
+         * given to `set_tables`.
+         * 
+         * @param temperature - the given electron temperature [K]
+         * @param density - the given mass density
+         * @param A  - the given atomic wieght
+         * @param Z - the average number of free electrons per nucleous (ionization)
+         * @param[in out] dtau_dT the derivative of tau with respect to T
+         */
+        void get_dtau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& dtau_dT);
+
+        Matrix get_dtau_matrix(double const temperature, double const density, double const A, double const Z);
 
        /**
         * @brief Sample from the distribution A*gamma^2e^(-gamma/theta)

@@ -307,7 +307,7 @@ void ComptonMatrixMC::calculate_S_matrix(double const temperature, Matrix& S){
             S[g0][g] = std::max(S[g0][g], std::numeric_limits<double>::min()*1e40);
 
         }
-        
+
         if(g0+1 == num_energy_groups){
             up_scattering_last *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
             down_scattering_last *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
@@ -395,7 +395,7 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid){
   
 }
 
-void ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau, Matrix& dtau_dUm){
+void ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau){
     auto const tmp_iterator = std::lower_bound(compton_temperatures.cbegin(), compton_temperatures.cend(), temperature);
     auto const tmp_i = std::distance(compton_temperatures.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
 
@@ -409,14 +409,14 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
         exit(1);
     }
 
-    if(tau.size() != num_energy_groups or dtau_dUm.size() != num_energy_groups){
-        std::cout << "tau or dtau_dUm given to get_tau_matrix has less then `num_energy_groups` rows" << std::endl;
+    if(tau.size() != num_energy_groups){
+        std::cout << "tau given to get_tau_matrix has less then `num_energy_groups` rows" << std::endl;
         exit(1);
     }
 
     for(std::size_t g=0; g < num_energy_groups; ++g){
-        if(tau[g].size() != num_energy_groups or dtau_dUm[g].size() != num_energy_groups){
-            std::cout << "tau or dtau_dUm given to get_tau_matrix has less then `num_energy_groups` columns" << std::endl;
+        if(tau[g].size() != num_energy_groups){
+            std::cout << "tau given to get_tau_matrix has less then `num_energy_groups` columns" << std::endl;
             exit(1);
         }
     }
@@ -425,7 +425,6 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
     for(std::size_t i = 0; i < num_energy_groups; ++i){
         for(std::size_t j=0; j < num_energy_groups; ++j){
             tau[i][j] = S_tables[tmp_i][i][j]*(1. - x) + S_tables[tmp_i+1][i][j]*x;
-            dtau_dUm[i][j] = dSdUm_tables[tmp_i][i][j]*(1. - x) + dSdUm_tables[tmp_i+1][i][j]*x;
         }
     }
 
@@ -433,19 +432,59 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
     for(std::size_t i=0; i<num_energy_groups; ++i){
         for(std::size_t j=0; j<num_energy_groups; ++j){
             tau[i][j] *= Nelectron;
-            dtau_dUm[i][j] *= Nelectron;
         }
     }
 
     enforce_detailed_balance(temperature, tau);
-    enforce_detailed_balance(temperature, dtau_dUm);
+}
+
+void ComptonMatrixMC::get_dtau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& dtau_dT){
+    auto const tmp_iterator = std::lower_bound(compton_temperatures.cbegin(), compton_temperatures.cend(), temperature);
+    auto const tmp_i = std::distance(compton_temperatures.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
+
+    if(tmp_i+1 == static_cast<int>(compton_temperatures.size())){
+        printf("temperature T=%gkev given to get_dtau_matrix is too high (maximal table temperature=%gkev)\n", temperature/units::kev_kelvin, compton_temperatures.back()/units::kev_kelvin);
+        exit(1);
+    }
+
+    if(tmp_i == -1){
+        printf("temperature T=%gkev given to get_dtau_matrix is too low (minimal table temperature=%gkev)\n", temperature/units::kev_kelvin, compton_temperatures[0]/units::kev_kelvin);
+        exit(1);
+    }
+
+    if(dtau_dT.size() != num_energy_groups){
+        std::cout << " dtau_dT given to get_dtau_matrix has less then `num_energy_groups` rows" << std::endl;
+        exit(1);
+    }
+
+    for(std::size_t g=0; g < num_energy_groups; ++g){
+        if(dtau_dT[g].size() != num_energy_groups){
+            std::cout << "dtau_dT given to get_dtau_matrix has less then `num_energy_groups` columns" << std::endl;
+            exit(1);
+        }
+    }
+
+    double const x = (temperature-compton_temperatures[tmp_i])/(compton_temperatures[tmp_i+1]-compton_temperatures[tmp_i]);
+    for(std::size_t i = 0; i < num_energy_groups; ++i){
+        for(std::size_t j=0; j < num_energy_groups; ++j){
+            dtau_dT[i][j] = dSdT_tables[tmp_i][i][j]*(1. - x) + dSdT_tables[tmp_i+1][i][j]*x;
+        }
+    }
+
+    double const Nelectron = density*units::Navogadro/A*Z;
+    for(std::size_t i=0; i<num_energy_groups; ++i){
+        for(std::size_t j=0; j<num_energy_groups; ++j){
+            dtau_dT[i][j] *= Nelectron;
+        }
+    }
+
+    enforce_detailed_balance(temperature, dtau_dT);
 }
 
 Matrix ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z){
     Matrix tau(num_energy_groups, Vector(num_energy_groups, 0.0));
-    Matrix dtau(num_energy_groups, Vector(num_energy_groups, 0.0));
 
-    get_tau_matrix(temperature, density, A, Z, tau, dtau);
+    get_tau_matrix(temperature, density, A, Z, tau);
 
     return tau;
 }
