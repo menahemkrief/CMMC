@@ -34,12 +34,11 @@ class ComptonMatrixMC {
          * 
          * @param temperature the given temeprature [K]
          * @param S the S matrix 
-         * @param dSdUm matrix
          * @return Matrix the microscopic Compton scattering matrix [cm^2]
          */
-        void calculate_S_and_dSdUm_matrices(double const temperature, Matrix& S, Matrix& dSdUm);
+        void calculate_S_matrix(double const temperature, Matrix& S);
         
-        std::pair<Matrix, Matrix> get_S_and_dSdUm_matrices(double const temperature);
+        Matrix get_S_matrix(double const temperature);
 
         
         /**
@@ -86,7 +85,7 @@ class ComptonMatrixMC {
         std::size_t get_num_of_samples() const { return num_of_samples; }
         unsigned int get_seed() const { return seed; }
         std::vector<Matrix> get_S_tables() const { return S_tables; }
-        std::vector<Matrix> get_dSdUm_tables() const { return dSdUm_tables; }
+        std::vector<Matrix> get_dSdT_tables() const { return dSdT_tables; }
       private:
         /**
          * @brief Given a set of temperatures, calculates and store the S matrices, so 
@@ -123,7 +122,7 @@ class ComptonMatrixMC {
 
         // tabulation
         std::vector<Matrix> S_tables;
-        std::vector<Matrix> dSdUm_tables;
+        std::vector<Matrix> dSdT_tables;
 
         // auxiliary arrays
         std::vector<double> n_eq; // temporary array to avoid repeated allocations, occupancy number at equilibrium

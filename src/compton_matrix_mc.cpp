@@ -68,7 +68,7 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const compton_temperatures_,
                                 boost::random::uniform_01<>()
                             ),
                             S_tables(),
-                            dSdUm_tables(),
+                            dSdT_tables(),
                             n_eq(num_energy_groups, machine_limits::signaling_NaN),
                             B(num_energy_groups, machine_limits::signaling_NaN),
                             up_scattering_last(machine_limits::signaling_NaN),
@@ -153,7 +153,7 @@ void ComptonMatrixMC::calculate_Bg_ng(double const temperature){
     }
 }
 
-void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, Matrix& S, Matrix& dSdUm){
+void ComptonMatrixMC::calculate_S_matrix(double const temperature, Matrix& S){
 
     int rank = 0;
 #ifdef RICH_MPI
@@ -162,7 +162,6 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
     for(std::size_t i=0; i < num_energy_groups; ++i){
         for(std::size_t j=0; j < num_energy_groups; ++j){
             S[i][j] = 0.0;
-            dSdUm[i][j] = 0.0;
         }
     }
 
@@ -264,10 +263,8 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
             } else {
                 double const fac = (E-E0)/(energy_groups_centers[g]-energy_groups_centers[g0]);
                 S[g0][g] += sigma*fac;
-                dSdUm[g0][g] += sigma*gamma*fac;
 
                 S[g0][g0] += sigma*(1.0-fac);
-                dSdUm[g0][g0] += sigma*gamma*(1.0-fac);
             }
         }    
     }
@@ -276,9 +273,7 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
     int world_size = 0;
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     
-    // 
-    ReduceMatrixSum(S, num_energy_groups);
-    ReduceMatrixSum(dSdUm, num_energy_groups);
+    ReduceMatrixSum(S);
     
     MPI_Allreduce(MPI_IN_PLACE, &sum_beta, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE, &up_scattering_last, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -305,14 +300,14 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
             if(weight_avg < std::numeric_limits<double>::min() * 1e40)
             {
                 S[g0][g] = std::numeric_limits<double>::min()*1e40;
-                dSdUm[g0][g] = 0.0;
                 continue;
             }
+            
             S[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
-            dSdUm[g0][g] *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
             S[g0][g] = std::max(S[g0][g], std::numeric_limits<double>::min()*1e40);
 
         }
+        
         if(g0+1 == num_energy_groups){
             up_scattering_last *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
             down_scattering_last *= units::sigma_thomson/(num_of_samples*beta_avg*weight_avg);
@@ -346,13 +341,13 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid){
     printf("\n");
 
     S_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
-    dSdUm_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
+    dSdT_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
 
     up_scattering_last_table = std::vector<double>(temperature_grid.size(), 0.0);
     down_scattering_last_table = std::vector<double>(temperature_grid.size(), 0.0);
 
     for(std::size_t i=0; i < temperature_grid.size(); ++i){
-        calculate_S_and_dSdUm_matrices(temperature_grid[i], S_tables[i], dSdUm_tables[i]);
+        calculate_S_matrix(temperature_grid[i], S_tables[i]);
         for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
             if(g0+1 == num_energy_groups){
                 up_scattering_last_table[i] = up_scattering_last;
@@ -365,7 +360,7 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid){
         size_t lower = i > 0 ? i - 1 : 0;
         size_t upper = i < temperature_grid.size() - 1 ? i + 1 : temperature_grid.size() - 1;
         
-        // to calculate dSdUm numerically at `T` we find the limits around the point s.t. T in [T_lower, T_upper] and T_upper - T_lower > max(1e5, temperature_grid[i] * 0.2)
+        // to calculate dSdT numerically at `T` we find the limits around the point s.t. T in [T_lower, T_upper] and T_upper - T_lower > max(1e5, temperature_grid[i] * 0.2)
         while((temperature_grid[upper] - temperature_grid[lower]) < std::max(1e5, temperature_grid[i] * 0.2))
         {
             if(lower > 0) --lower;
@@ -373,20 +368,24 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid){
             
             if(lower == 0 && upper == (temperature_grid.size() - 1)) break;
         }
-        double dUm = temperature_grid[upper] -temperature_grid[lower];
+
+        double const dT = temperature_grid[upper] -temperature_grid[lower];
+        
         for (std::size_t g0=0; g0 < num_energy_groups; ++g0){
             for (std::size_t g=0; g < num_energy_groups; ++g){
-                dSdUm_tables[i][g0][g] = (S_tables[upper][g0][g] - S_tables[lower][g0][g]) / dUm;
+                dSdT_tables[i][g0][g] = (S_tables[upper][g0][g] - S_tables[lower][g0][g]) / dT;
             }
 
             if(g0+1 == num_energy_groups){
                 double const dS_upper = up_scattering_last_table[upper] - down_scattering_last_table[upper];
                 double const dS_lower = up_scattering_last_table[lower] - down_scattering_last_table[lower];
                 double const dS = up_scattering_last_table[i] - down_scattering_last_table[i];
-                if((dS < 0 && dS_lower < 0 && dS_upper < 0) || (dS > 0 && dS_lower > 0 && dS_upper > 0))
-                    dSdUm_tables[i][g0][g0] = (dS_upper - dS_lower)/dUm;
-                else
-                    dSdUm_tables[i][g0][g0] = 0;
+
+                if((dS < 0 && dS_lower < 0 && dS_upper < 0) || (dS > 0 && dS_lower > 0 && dS_upper > 0)){
+                    dSdT_tables[i][g0][g0] = (dS_upper - dS_lower)/dT;
+                } else {
+                    dSdT_tables[i][g0][g0] = 0;
+                }
             }
         }
     }
