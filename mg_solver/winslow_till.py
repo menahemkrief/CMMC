@@ -11,6 +11,7 @@ matplotlib.rcParams.update({
 from mg_solver import MGSolver, get_planckian
 
 # add the cpp modules to the system's path
+import os
 from os import path
 sys.path.append(path.abspath(path.join(path.dirname(path.abspath(__file__)), path.pardir)))
 from cpp_modules._compton_matrix_mc import ComptonMatrixMC
@@ -24,17 +25,20 @@ Figs 1-2 in McGraw C, Till A, Warsa J. A new operator-split Compton scattering m
 
 rho = 1.
 
-# # case 1 (Figs. 1-2 in Winslaw 1995 and  Fig. 1 in McGraw-Till-Warsa 2023)
-# T_mat_init = 20.*units.kev_kelvin
-# T_rad_init = 1.*units.kev_kelvin
-# t_end = 3e-8 # McGraw-Till-Warsa paper
-# # t_end = 5e-9 # Winslaw1995 paper
+cases = [
+    dict(T_mat_init=1.*units.kev_kelvin, T_rad_init=10.*units.kev_kelvin, t_end=0.5e-8, compton=True, absorption=True,  info="Fig. 2 in McGraw-Till-Warsa 2023"),
+    dict(T_mat_init=1.*units.kev_kelvin, T_rad_init=10.*units.kev_kelvin, t_end=0.5e-8, compton=False,absorption=True, info="Fig. 3 in McGraw-Till-Warsa 2023"),
+    dict(T_mat_init=20.*units.kev_kelvin, T_rad_init=1.*units.kev_kelvin, t_end=3e-8,   compton=True, absorption=True,  info="Figs. 1 in Winslaw 1995 and  Fig. 1 in McGraw-Till-Warsa 2023"),
+    dict(T_mat_init=20.*units.kev_kelvin, T_rad_init=1.*units.kev_kelvin, t_end=3e-8,   compton=True, absorption=False, info="Figs. 2 in Winslaw 1995"),
+]
 
-# case 2 (Fig. 2 in McGraw-Till-Warsa 2023)
-T_mat_init = 1.*units.kev_kelvin
-T_rad_init = 10.*units.kev_kelvin
-t_end = 0.5e-8
-
+case = cases[3]
+T_mat_init = case['T_mat_init']
+T_rad_init = case['T_rad_init']
+t_end =      case['t_end']
+compton =    case['compton']
+absorption = case['absorption']
+info =       case['info']
 
 # ---- material EOS
 Zf = 1.
@@ -63,34 +67,29 @@ G = len(energy_groups_centers)
 Eg_init = get_planckian(T_rad_init, energy_groups_boundaries)
 
 # ----- material opacity
-# sigma_absorption = None
-# # Free-Free opacity of fully ionized Hydrogen (Rybicky & Lightman book, Eq. 5.18b)
+# Free-Free opacity of fully ionized Hydrogen (Rybicky & Lightman book, Eq. 5.18b)
 sigma_ff_RL = lambda e,T,rho: 3.7e8*Zf**3*(rho*units.Navogadro/A)**2*T**(-0.5)*(1.-np.exp(-e/(units.k_boltz*T)))*(e/units.planck_constant)**-3
 energy_groups_centers_geom = np.sqrt(energy_groups_boundaries[1:]*energy_groups_boundaries[:-1])
-sigma_absorption = lambda T,rho: [sigma_ff_RL(max(e, 10.*units.ev),T,rho) for e in energy_groups_centers_geom]
 
-# --plot the opacity on bins
-# plt.plot(energy_groups_centers/units.kev, sigma_absorption2(2.*units.kev_kelvin,1.))
-# plt.plot(energy_groups_centers/units.kev, sigma_absorption(2.*units.kev_kelvin,1.))
-# plt.stairs(edges=energy_groups_boundaries/units.kev, values=sigma_absorption(5.*units.kev_kelvin,1.) ,label=f"R&L")
-# plt.xscale("log")
-# plt.yscale("log")
-# plt.show()
+sigma_absorption = None
+if absorption: sigma_absorption = lambda T,rho: [sigma_ff_RL(max(e, 10.*units.ev),T,rho) for e in energy_groups_centers_geom] 
 
-# # ---- compton matrix
-# tau_compton = None
-# # # tau_compton = lambda T,rho: np.ones((G,G))*0.01
+# ---- compton matrix
+compton_engine=None
+if compton:
+    compton_engine = ComptonMatrixMC(
+        energy_groups_centers=energy_groups_centers,
+        energy_groups_boundaries=energy_groups_boundaries, 
+        num_of_samples=int(2e5),
+        force_detailed_balance=True,
+        seed=0,
+    )
+    compton_engine.set_tables(temperature_grid=np.linspace(min(T_mat_init, T_rad_init)*0.95, max(T_mat_init, T_rad_init)*1.1, 10))
 
-compton_engine = ComptonMatrixMC(
-    energy_groups_centers=energy_groups_centers,
-    energy_groups_boundaries=energy_groups_boundaries, 
-    num_of_samples=int(2e5),
-    force_detailed_balance=True,
-    seed=0,
-)
-compton_engine.set_tables(temperature_grid=np.linspace(min(T_mat_init, T_rad_init)*0.95, max(T_mat_init, T_rad_init), 10))
-tau_compton = lambda T,rho: np.asfarray(compton_engine.get_tau_matrix(temperature=T, density=rho, A=A, Z=Zf))
+tau_compton = None
+if compton: tau_compton = lambda T,rho: np.asfarray(compton_engine.get_tau_matrix(temperature=T, density=rho, A=A, Z=Zf))
 
+print(tau_compton, compton, sigma_absorption)
 # # --- Multigroup radiation-material equations solver
 solver = MGSolver(
     energy_groups_boundaries=energy_groups_boundaries,
@@ -126,12 +125,12 @@ plt.plot(times/1e-9, T_mat, "r", lw=2, label=f"$T_{{m}}(t={times[-1]/1e-9:.3g}\\
 plt.plot(times/1e-9, T_rad, "b", lw=2, label=f"$T_{{r}}(t={times[-1]/1e-9:.3g}\\mathrm{{ns}})={T_rad[-1]:g}$")
 plt.axhline(y=solver.T_eq/units.kev_kelvin, c="k", ls="--", lw=3, label=f"$T_{{eq}}={solver.T_eq/units.kev_kelvin:g}$")
 plt.grid()
+plt.title(info)
 plt.ylabel("$T(t)$ [kev]")
 plt.xlabel("$t$ [ns]")
 plt.tight_layout()
 
 # ---- compare to data from literature
-
 if  T_mat_init == 20.*units.kev_kelvin:
 
     if sigma_absorption != None:
@@ -145,12 +144,12 @@ if  T_mat_init == 20.*units.kev_kelvin:
         data = np.loadtxt("data_from_literature/Winslow_Trad.txt", delimiter=",")
         plt.plot(data[:,0]/1e-9, data[:,1], "bs", label=f"$T_{{r}}$ Winslow")
         plt.legend(loc="best", fontsize=15).set_draggable(True)
-        plt.savefig("WinslowTill.png")
-        plt.savefig("WinslowTill.pdf")
-        # as in Winslow1995 Fig. 1
-        plt.xlim([0,5])
-        plt.savefig("WinslowTill_xlim5.png")
-        plt.savefig("WinslowTill_xlim5.pdf")
+        # plt.savefig("WinslowTill.png")
+        # plt.savefig("WinslowTill.pdf")
+        # # as in Winslow1995 Fig. 1
+        # plt.xlim([0,5])
+        # plt.savefig("WinslowTill_xlim5.png")
+        # plt.savefig("WinslowTill_xlim5.pdf")
     else:
         # Winslow1995 Fig. 2
         data = np.loadtxt("data_from_literature/Winslow_Tmat_only_compton.txt", delimiter=",")
@@ -159,17 +158,20 @@ if  T_mat_init == 20.*units.kev_kelvin:
         plt.plot(data[:,0]/1e-9, data[:,1], "bs", label=f"$T_{{r}}$ Winslow")
         plt.legend(loc="best").set_draggable(True)
         plt.xlim([0,5])
-        plt.savefig("Winslow_only_compton.png")
-        plt.savefig("Winslow_only_compton.pdf")
+        # plt.savefig("Winslow_only_compton.png")
+        # plt.savefig("Winslow_only_compton.pdf")
 else:
     # second case in McGraw-Till-Warsa (Fig. 2)
-    data = np.loadtxt("data_from_literature/Till_Tmat.txt", delimiter=",")
+    if compton:
+        data = np.loadtxt("data_from_literature/Till_Tmat.txt", delimiter=",")
+    else:
+        data = np.loadtxt("data_from_literature/Till_Tmat_no_compton.txt", delimiter=",")
     plt.plot(data[:,0]/1e-9, data[:,1], "ro",  label=f"$T_{{m}}$ McGraw-Till-Warsa")
     plt.legend(loc="best").set_draggable(True)
     plt.xscale("log")
     plt.xlim([1e-2,5])
-    plt.savefig("Till_Fig2.png")
-    plt.savefig("Till_Fig2.pdf")
+    # plt.savefig("Till_Fig2.png")
+    # plt.savefig("Till_Fig2.pdf")
 
 plt.show()
 
@@ -178,7 +180,7 @@ plt.show()
 normalized_planck = lambda x: 15.*x*x*x*np.exp(-x)/(np.pi*np.pi*np.pi*np.pi*(1-np.exp(-x)))
 energy_groups_width = np.diff(energy_groups_boundaries)
 dir_figs = "spec_output"
-import os 
+
 os.makedirs(dir_figs, exist_ok=True)    
 for i, (t,r) in enumerate(zip(times[::5], res[::5])):
     Tm = r["T_mat"]
@@ -200,14 +202,13 @@ for i, (t,r) in enumerate(zip(times[::5], res[::5])):
     plt.xlabel("photon energy $E$ [kev]")
     plt.ylabel("$U(E) \\ [\\mathrm{{erg/cm^{{3}}/kev}}]$ ")
     plt.tight_layout()
-    plt.savefig(path.join(dir_figs, f"spec_{i:04d}.png"))
+    # plt.savefig(path.join(dir_figs, f"spec_{i:04d}.png"))
     plt.ylim(ymin=1e-2)
     plt.xscale("log")
     plt.tight_layout()
-    plt.savefig(path.join(dir_figs, f"spec_logx_{i:04d}.png"))
+    # plt.savefig(path.join(dir_figs, f"spec_logx_{i:04d}.png"))
     plt.yscale("log")
     plt.tight_layout()
-    plt.savefig(path.join(dir_figs, f"spec_loglog_{i:04d}.png"))
-    # plt.show()
-    plt.close()
-    print(f"spec {i}")
+    # plt.savefig(path.join(dir_figs, f"spec_loglog_{i:04d}.png"))
+    plt.show()
+    # plt.close()
