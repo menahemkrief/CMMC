@@ -7,9 +7,13 @@
 #include "planck_integral/planck_integral.hpp"
 
 #include <boost/math/special_functions/pow.hpp>
+#define RICH_MPI
+
 #ifdef RICH_MPI
     #include <mpi.h>
 #endif
+
+namespace compton_matrix_mc {
 
 namespace machine_limits {
     static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_NaN();
@@ -547,3 +551,5 @@ void ComptonMatrixMC::enforce_detailed_balance(double const temperature, Matrix&
         }
     }
 }
+
+} // namepsace compton_matrix_mc
