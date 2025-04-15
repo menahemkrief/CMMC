@@ -390,8 +390,8 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid){
             }
         }
     }
-    if(rank == 0)
-        std::cout<<"Done compton matrix tables"<<std::endl;
+
+    if(rank == 0) std::cout<<"Done compton matrix tables"<<std::endl;
 
   
 }
