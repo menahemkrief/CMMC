@@ -251,9 +251,9 @@ void ComptonMatrixMC::calculate_S_matrix(double const temperature, Matrix& S){
             
             if(g0 == static_cast<std::size_t>(g)){
                 S[g0][g] += sigma;
-                dSdUm[g0][g] += sigma*gamma;
 
                 if(g0+1 == num_energy_groups){
+                    // for the last group, we explicitly calculate the change in energy due to up and down scattering and incorporate it inside the group cross section (similarly to what we do between different groups)
                     if(E0 < E){
                         up_scattering_last += (E-E0)/energy_groups_centers[g0] * sigma;
                     } else {
