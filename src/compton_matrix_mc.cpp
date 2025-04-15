@@ -1,6 +1,7 @@
 #include <limits>
 #include <ctime>
 #include <cmath>
+#include <algorithm>
 
 #include "compton_matrix_mc.hpp"
 #include "units/units.hpp"
@@ -80,6 +81,7 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const compton_temperatures_,
                             up_scattering_last(machine_limits::signaling_NaN),
                             down_scattering_last(machine_limits::signaling_NaN){
     int rank = 0;
+
 #ifdef RICH_MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     sample_uniform_01.engine().seed(seed + rank);
@@ -92,15 +94,27 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const compton_temperatures_,
         printf("ComptonMatrixMC fatal - inconsistent number of energy group boundaries and centers\n");
         exit(1);
     }
+
+    if(std::any_of(
+        energy_groups_boundries.begin(), energy_groups_boundries.end(),
+        [](double const e){ return e < 0.0; }
+    )) {
+        printf("ComptonMatrixMC fatal - negative energy group boundaries");
+        exit(1);
+    }
+
     for(std::size_t g=0; g<num_energy_groups; ++g){
-        if(energy_groups_boundries[g]   < 0. or
-           energy_groups_boundries[g]   >= energy_groups_boundries[g+1] or
-           energy_groups_boundries[g]   >= energy_groups_centers[g] or
-           energy_groups_boundries[g+1] <= energy_groups_centers[g]){
-            printf("ComptonMatrixMC fatal - inconsistent energy group boundaries/centers\n");
+        if(energy_groups_boundries[g] >= energy_groups_boundries[g+1]){
+            printf("ComptonMatrixMC fatal - energy group boundaries are not strictly increasing\n");
+            exit(1);
+        }
+
+        if(energy_groups_boundries[g] >= energy_groups_centers[g] or energy_groups_boundries[g+1] <= energy_groups_centers[g]){
+            printf("ComptonMatrixMC fatal - energy group center is not enclosed in its corresponding energy group boundaries\n");
             exit(1);
         }
     }
+
     if(rank == 0)
     {
     printf("Compton matrices defined on %ld groups.\nPhoton energy group boundaries (in KeV) \n", num_energy_groups);
