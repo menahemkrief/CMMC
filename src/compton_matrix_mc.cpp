@@ -377,12 +377,13 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid){
             }
 
             if(g0+1 == num_energy_groups){
-                double const dS_upper = up_scattering_last_table[upper] - down_scattering_last_table[upper];
-                double const dS_lower = up_scattering_last_table[lower] - down_scattering_last_table[lower];
-                double const dS = up_scattering_last_table[i] - down_scattering_last_table[i];
-
-                if((dS < 0 && dS_lower < 0 && dS_upper < 0) || (dS > 0 && dS_lower > 0 && dS_upper > 0)){
-                    dSdT_tables[i][g0][g0] = (dS_upper - dS_lower)/dT;
+                double const sigma_upper = up_scattering_last_table[upper] - down_scattering_last_table[upper];
+                double const sigma_lower = up_scattering_last_table[lower] - down_scattering_last_table[lower];
+                double const sigma = up_scattering_last_table[i] - down_scattering_last_table[i];
+                
+                /*Since for the 'last group -> last group' we account for the up/down scattering difference we can have "negative" cross section (i.e energy is lost to the material because of scattering inside the group itself) this condition ensures that the sign is the same across temperatures and that we have no sign change because of sampling accuracy */
+                if((sigma < 0 && sigma_lower < 0 && sigma_upper < 0) || (sigma > 0 && sigma_lower > 0 && sigma_upper > 0)){
+                    dSdT_tables[i][g0][g0] = (sigma_upper - sigma_lower)/dT;
                 } else {
                     dSdT_tables[i][g0][g0] = 0;
                 }
