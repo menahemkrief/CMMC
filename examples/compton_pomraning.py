@@ -57,7 +57,7 @@ def check_pomranning():
             g = np.argmin(np.abs(ec-e0)) # find the energy group closest to e0
             plt.stairs(edges=eb/units.kev, values=S_mat[g, :]/(ewid/units.kev)/mbarn ,label=f"$E_{{\\mathrm{{in}}}}$={ec[g]/units.kev:g} kev")
 
-        for j, file in enumerate(os.listdir(path_to_data_folder:=path.join(path_to_parent, "data", case['data_dir']))):
+        for j, file in enumerate(os.listdir(path_to_data_folder:=path.join(path_to_parent, "examples", "data", case['data_dir']))):
             if file.endswith(".txt"):
                 sigma_data = np.loadtxt(path.join(path_to_data_folder, file), delimiter=",")
                 plt.plot(sigma_data[:, 0], sigma_data[:, 1], 'o', c='k', label="Pomeraning data" if j == 0 else None)
