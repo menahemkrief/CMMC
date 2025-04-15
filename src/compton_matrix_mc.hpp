@@ -38,6 +38,12 @@ class ComptonMatrixMC {
          */
         void calculate_S_matrix(double const temperature, Matrix& S);
         
+        /**
+         * @brief Returns the *microscopic* Compton scattering matrix at
+         * the given temperature (without interpolation on temperature).
+         * 
+         * @param temperature the given temeprature [K]
+         */
         Matrix get_S_matrix(double const temperature);
 
         
@@ -50,14 +56,24 @@ class ComptonMatrixMC {
          * @param density - the given mass density
          * @param A  - the given atomic wieght
          * @param Z - the average number of free electrons per nucleous (ionization)
-         * @param[in out] tau - the resulting Compton tau marix (units of 1/cm).
+         * @param[in out] tau - the resulting Compton tau marix (units of 1/cm, given as an in-out paramterto avoid repeated allocations).
          */
         void get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau);
 
+        /**
+         * @brief Returns the Compton tau matrix - which is the macroscopic cross secion for Compton scattering
+         * The result is calculated for the given temperature by interpolation over the set of temperatures
+         * given to `set_tables`.
+         * @param temperature - the given electron temperature [K]
+         * @param density - the given mass density
+         * @param A  - the given atomic wieght
+         * @param Z - the average number of free electrons per nucleous (ionization)
+         * @return Matrix the Compton tau marix (units of 1/cm)  
+         */
         Matrix get_tau_matrix(double const temperature, double const density, double const A, double const Z);
         
         /**
-         * @brief Get the Compton tau matrix - which is the macroscopic cross secion for Compton scattering
+         * @brief Get the Compton dtau matrix - which is the macroscopic cross secion for Compton scattering
          * The result is calculated for the given temperature by interpolation over the set of temperatures
          * given to `set_tables`.
          * 
@@ -65,10 +81,21 @@ class ComptonMatrixMC {
          * @param density - the given mass density
          * @param A  - the given atomic wieght
          * @param Z - the average number of free electrons per nucleous (ionization)
-         * @param[in out] dtau_dT the derivative of tau with respect to T
+         * @param[in out] dtau_dT the derivative of tau with respect to T (units of 1/(cm*K), given as an in-out paramterto avoid repeated allocations)
          */
         void get_dtau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& dtau_dT);
-
+        
+        /**
+         * @brief Returns the Compton dtau matrix - which is the macroscopic cross secion for Compton scattering
+         * The result is calculated for the given temperature by interpolation over the set of temperatures
+         * given to `set_tables`.
+         * 
+         * @param temperature - the given electron temperature [K]
+         * @param density - the given mass density
+         * @param A  - the given atomic wieght
+         * @param Z - the average number of free electrons per nucleous (ionization)
+         * @return Matrix the Compton dtau matrix (units of 1/(cm*K)) 
+         */
         Matrix get_dtau_matrix(double const temperature, double const density, double const A, double const Z);
 
        /**
@@ -91,6 +118,7 @@ class ComptonMatrixMC {
         
         std::pair<double, double> get_last_group_upscattering_and_downscattering(double const temperature, double const density, double const A, double const Z);
         
+        // Getters 
         Vector get_compton_temperatures() const { return compton_temperatures; }
         Vector get_energy_groups_centers() const { return energy_groups_centers; }
         Vector get_energy_groups_width() const { return energy_groups_width; }
@@ -137,16 +165,16 @@ class ComptonMatrixMC {
         // tabulation
         std::vector<Matrix> S_tables;
         std::vector<Matrix> dSdT_tables;
+        std::vector<double> up_scattering_last_table; 
+        std::vector<double> down_scattering_last_table;
 
         // auxiliary arrays
         std::vector<double> n_eq; // temporary array to avoid repeated allocations, occupancy number at equilibrium
         std::vector<double> B; // temporary array to avoid repeated allocations, group energy density at equilibrium (i.e. the integral on the planck function)
 
-        double up_scattering_last;
-        double down_scattering_last;
+        double up_scattering_last; // temporary variable, last computed up scattering value
+        double down_scattering_last; // temporary variable, last computed down scattering value
 
-        std::vector<double> up_scattering_last_table;
-        std::vector<double> down_scattering_last_table;
 };
 
 #endif

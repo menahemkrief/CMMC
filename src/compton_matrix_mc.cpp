@@ -22,7 +22,7 @@ namespace
     /**
     * @brief Reduces a matrix sum across MPI processes.
     *
-    * This function reduces a matrix sum across MPI processes. It takes a matrix `S` and its dimensions `num_energy_groups` and performs an all-reduce operation on each element of the matrix.
+    * This function reduces a matrix sum across MPI processes. It takes a matrix `S` and performs an all-reduce sum operation on each row of the matrix.
     *
     * @param[in,out] S The matrix to be reduced. The matrix is modified in-place.
     * @note There is an implicit assumption that the matrix is a square matrix.
@@ -69,12 +69,12 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const compton_temperatures_,
                             ),
                             S_tables(),
                             dSdT_tables(),
+                            up_scattering_last_table(),
+                            down_scattering_last_table(),
                             n_eq(num_energy_groups, machine_limits::signaling_NaN),
                             B(num_energy_groups, machine_limits::signaling_NaN),
                             up_scattering_last(machine_limits::signaling_NaN),
-                            down_scattering_last(machine_limits::signaling_NaN),
-                            up_scattering_last_table(),
-                            down_scattering_last_table() {
+                            down_scattering_last(machine_limits::signaling_NaN){
     int rank = 0;
 #ifdef RICH_MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -99,9 +99,9 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const compton_temperatures_,
     }
     if(rank == 0)
     {
-    printf("Compton matrices defined on %ld groups.\nPhoton energy group boundaries (in kev) \n", num_energy_groups);
+    printf("Compton matrices defined on %ld groups.\nPhoton energy group boundaries (in KeV) \n", num_energy_groups);
     for(auto const e : energy_groups_boundries){
-        printf("%g ", e/units::kev);
+        printf("%g KeV, ", e/units::kev);
     }
     printf("\n");    
     }
@@ -328,10 +328,10 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid){
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif   
     if(rank == 0)
-    printf("Setting Compton matrix tables for %ld temperatures (in kev):\n", temperature_grid.size());
+    printf("Setting Compton matrix tables for %ld temperatures (in KeV):\n", temperature_grid.size());
     for(std::size_t i=0; i<temperature_grid.size(); ++i){
         if(rank == 0)
-        printf("%g ", temperature_grid[i]/units::kev_kelvin);
+        printf("%g KeV, ", temperature_grid[i]/units::kev_kelvin);
         if(i>0 and temperature_grid[i]<=temperature_grid[i-1]){
             printf("fatal - Compton temperature grid is not monotonic\n");
             exit(1);
