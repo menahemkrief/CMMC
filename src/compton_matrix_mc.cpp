@@ -100,7 +100,7 @@ double ComptonMatrixMC::sample_gamma(double const temperature) const {
     return 1.0 - theta*std::log(r1);
 }
 
-void ComptonMatrixMC::calculate_Bg_ng(double const temperature) {
+void ComptonMatrixMC::calculate_Bg_ng(double const temperature) const {
     using boost::math::pow;
     double constexpr fac = pow<3>(units::clight) / (8.0*M_PI*units::planck_constant);
     for (std::size_t g=0; g < num_energy_groups; ++g) {
@@ -264,7 +264,7 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid) {
     }
 }
 
-void ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau) {
+void ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau) const {
     auto const tmp_iterator = std::lower_bound(compton_temperatures.cbegin(), compton_temperatures.cend(), temperature);
     auto const tmp_i = std::distance(compton_temperatures.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
 
@@ -307,7 +307,7 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
     enforce_detailed_balance(temperature, tau);
 }
 
-Matrix ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z) {
+Matrix ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z) const {
     Matrix tau(num_energy_groups, Vector(num_energy_groups, 0.0));
 
     get_tau_matrix(temperature, density, A, Z, tau);
@@ -315,7 +315,7 @@ Matrix ComptonMatrixMC::get_tau_matrix(double const temperature, double const de
     return tau;
 }
 
-void ComptonMatrixMC::get_dtau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& dtau_dT) {
+void ComptonMatrixMC::get_dtau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& dtau_dT) const {
     auto const tmp_iterator = std::lower_bound(compton_temperatures.cbegin(), compton_temperatures.cend(), temperature);
     auto const tmp_i = std::distance(compton_temperatures.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
 
@@ -352,7 +352,7 @@ void ComptonMatrixMC::get_dtau_matrix(double const temperature, double const den
     enforce_detailed_balance(temperature, dtau_dT);
 }
 
-Matrix ComptonMatrixMC::get_dtau_matrix(double const temperature, double const density, double const A, double const Z) {
+Matrix ComptonMatrixMC::get_dtau_matrix(double const temperature, double const density, double const A, double const Z) const {
     Matrix dtau(num_energy_groups, Vector(num_energy_groups, 0.0));
 
     get_dtau_matrix(temperature, density, A, Z, dtau);
@@ -360,7 +360,7 @@ Matrix ComptonMatrixMC::get_dtau_matrix(double const temperature, double const d
     return dtau;
 }
 
-void ComptonMatrixMC::enforce_detailed_balance(double const temperature, Matrix& mat) {
+void ComptonMatrixMC::enforce_detailed_balance(double const temperature, Matrix& mat) const {
     calculate_Bg_ng(temperature);
     for (std::size_t g=0; g<num_energy_groups; ++g) {
         double const E_g = energy_groups_centers[g];

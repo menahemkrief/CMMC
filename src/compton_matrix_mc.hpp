@@ -50,7 +50,7 @@ public:
      * @param Z - the average number of free electrons per nucleous (ionization)
      * @param[in out] tau - the resulting Compton tau marix (units of 1/cm, given as an in-out paramter to avoid repeated allocations).
      */
-    void   get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau);
+    void   get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau) const;
 
     /**
      * @brief Returns the Compton tau matrix - which is the macroscopic cross secion for Compton scattering
@@ -62,7 +62,7 @@ public:
      * @param Z - the average number of free electrons per nucleous (ionization)
      * @return Matrix the Compton tau marix (units of 1/cm)
      */
-    Matrix get_tau_matrix(double const temperature, double const density, double const A, double const Z);
+    Matrix get_tau_matrix(double const temperature, double const density, double const A, double const Z) const;
 
     /**
      * @brief Get the Compton tau matrix - which is the macroscopic cross secion for Compton scattering
@@ -75,7 +75,7 @@ public:
      * @param Z - the average number of free electrons per nucleous (ionization)
      * @param[in out] dtau_dT the derivative of tau with respect to T (units of 1/(cm*K), given as an in-out paramterto avoid repeated allocations)
      */
-    void   get_dtau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau);
+    void   get_dtau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau) const;
 
     /**
      * @brief Returns the Compton dtau matrix - which is the macroscopic cross secion for Compton scattering
@@ -88,7 +88,7 @@ public:
      * @param Z - the average number of free electrons per nucleous (ionization)
      * @return Matrix the Compton dtau matrix (units of 1/(cm*K))
      */
-    Matrix get_dtau_matrix(double const temperature, double const density, double const A, double const Z);
+    Matrix get_dtau_matrix(double const temperature, double const density, double const A, double const Z) const;
 
     /**
      * @brief Sample from the distribution A*gamma^2e^(-gamma/theta)
@@ -122,13 +122,13 @@ private:
     @param temperature at which to force detailed balance
     @param mat matrix on which to force detailed balance
     */
-    void enforce_detailed_balance(double const temperature, Matrix& mat);
+    void enforce_detailed_balance(double const temperature, Matrix& mat) const;
 
     /*!
     @brief calculates the planck integrals per group `Bg` and the equilibrium occupancy number `n_eq`
     @param temperature the temperature for the planckian
     */
-    void calculate_Bg_ng(double const temperature);
+    void calculate_Bg_ng(double const temperature) const;
 
     Vector const compton_temperatures; // temperature grid for the compston tables
 
@@ -146,9 +146,9 @@ private:
     std::vector<Matrix> dSdT_tables;
 
     // auxiliary arrays
-    Matrix S_temp;
-    std::vector<double> n_eq; // temporary array to avoid repeated allocations, occupancy number at equilibrium
-    std::vector<double> B; // temporary array to avoid repeated allocations, group energy density at equilibrium (i.e. the integral on the planck function)
+    mutable Matrix S_temp;
+    mutable std::vector<double> n_eq; // temporary array to avoid repeated allocations, occupancy number at equilibrium
+    mutable std::vector<double> B; // temporary array to avoid repeated allocations, group energy density at equilibrium (i.e. the integral on the planck function)
 };
 
 } // namespace compton_matrix_mc
