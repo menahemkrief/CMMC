@@ -8,7 +8,10 @@
 
 #include <boost/math/special_functions/pow.hpp>
 
-static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_NaN();
+namespace machine_limits {
+    static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_NaN();
+    static double constexpr min_double = 1024.*std::numeric_limits<double>::min();
+}
 
 ComptonMatrixMC::ComptonMatrixMC(
     Vector const energy_groups_centers_,
@@ -30,16 +33,16 @@ ComptonMatrixMC::ComptonMatrixMC(
     temperature_grid(),
     S_log_tables(),
     dSdUm_tables(),
-    S_temp(num_energy_groups, Vector(num_energy_groups, signaling_NaN)),
-    n_eq(num_energy_groups, signaling_NaN),
-    B(num_energy_groups, signaling_NaN) {
+    S_temp(num_energy_groups, Vector(num_energy_groups, machine_limits::signaling_NaN)),
+    n_eq(num_energy_groups, machine_limits::signaling_NaN),
+    B(num_energy_groups, machine_limits::signaling_NaN) {
     
     printf("Generating a ComptonMatrixMC object... seed=%d\n", seed);
     if (num_energy_groups + 1 != energy_groups_boundries.size()) {
         printf("ComptonMatrixMC fatal - inconsistent number of energy group boundaries and centers\n");
         exit(1);
     }
-    
+
     for (std::size_t g=0; g<num_energy_groups; ++g) {
         if (energy_groups_boundries[g]   < 0. or
             energy_groups_boundries[g]   >= energy_groups_boundries[g+1] or
