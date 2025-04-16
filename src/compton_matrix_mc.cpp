@@ -31,7 +31,7 @@ ComptonMatrixMC::ComptonMatrixMC(
         boost::random::uniform_01<>()
     ),
     temperature_grid(),
-    S_log_tables(),
+    S_tables(),
     dSdUm_tables(),
     S_temp(num_energy_groups, Vector(num_energy_groups, machine_limits::signaling_NaN)),
     n_eq(num_energy_groups, machine_limits::signaling_NaN),
@@ -230,16 +230,11 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_) {
     printf("\n");
 
     temperature_grid = temperature_grid_;
-    S_log_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
+    S_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
     dSdUm_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
 
     for (std::size_t i=0; i < temperature_grid.size(); ++i) {
-        S_log_tables[i] = calculate_S_matrix(temperature_grid[i]);
-        for (std::size_t g0=0; g0 < num_energy_groups; ++g0) {
-            for (std::size_t g=0; g < num_energy_groups; ++g) {
-                S_log_tables[i][g0][g] = std::log(S_log_tables[i][g0][g]);
-            }
-        }
+        S_tables[i] = calculate_S_matrix(temperature_grid[i]);
     }
 
     for (std::size_t i=0; i+1 < temperature_grid.size(); ++i) {
@@ -252,7 +247,7 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_) {
 
         for (std::size_t g=0; g < num_energy_groups; ++g) {
             for (std::size_t gt=0; gt<num_energy_groups; ++gt) {
-                dSdUm_tables[i][g][gt] = (std::exp(S_log_tables[i+1][g][gt]) - std::exp(S_log_tables[i][g][gt]))/dUm;
+                dSdUm_tables[i][g][gt] = (S_tables[i+1][g][gt] - S_tables[i][g][gt])/dUm;
             }
         }
     }
@@ -287,7 +282,7 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
     double const x = (temperature-temperature_grid[tmp_i])/(temperature_grid[tmp_i+1]-temperature_grid[tmp_i]);
     for (std::size_t i = 0; i < num_energy_groups; ++i) {
         for (std::size_t j=0; j < num_energy_groups; ++j) {
-            tau[i][j] = std::exp(S_log_tables[tmp_i][i][j])*(1. - x) + std::exp(S_log_tables[tmp_i+1][i][j])*x;
+            tau[i][j] = S_tables[tmp_i][i][j]*(1. - x) + S_tables[tmp_i+1][i][j]*x;
         }
     }
 
