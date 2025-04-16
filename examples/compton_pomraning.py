@@ -41,13 +41,13 @@ def check_pomranning():
         
         T = case["T"]*units.kev_kelvin
 
-        num_of_samples = int(1e4)
+        num_of_samples = int(1e5)
 
         compton_engine = ComptonMatrixMC(
+            compton_temperatures=[T, T+1],            
             energy_groups_centers=ec, 
             energy_groups_boundaries=eb, 
             num_of_samples=num_of_samples,
-            force_detailed_balance=True,
         )
 
         S_mat = np.array(compton_engine.calculate_S_matrix(temperature=T)) # microscopic group-to-group cross section

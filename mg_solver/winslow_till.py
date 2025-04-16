@@ -78,13 +78,12 @@ if absorption: sigma_absorption = lambda T,rho: [sigma_ff_RL(max(e, 10.*units.ev
 compton_engine=None
 if compton:
     compton_engine = ComptonMatrixMC(
+        compton_temperatures=np.linspace(min(T_mat_init, T_rad_init)*0.95, max(T_mat_init, T_rad_init)*1.1, 10),
         energy_groups_centers=energy_groups_centers,
         energy_groups_boundaries=energy_groups_boundaries, 
         num_of_samples=int(2e5),
-        force_detailed_balance=True,
         seed=0,
     )
-    compton_engine.set_tables(temperature_grid=np.linspace(min(T_mat_init, T_rad_init)*0.95, max(T_mat_init, T_rad_init)*1.1, 10))
 
 tau_compton = None
 if compton: tau_compton = lambda T,rho: np.asfarray(compton_engine.get_tau_matrix(temperature=T, density=rho, A=A, Z=Zf))
