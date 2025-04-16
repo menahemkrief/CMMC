@@ -92,10 +92,6 @@ private:
     std::size_t const num_of_samples;
     unsigned int const seed;
     boost::random::variate_generator<boost::random::mt19937, boost::random::uniform_01<>> sample_uniform_01;
-
-    bool const force_detailed_balance;
-
-    // tabulation
     Vector temperature_grid;
     std::vector<Matrix> S_log_tables;
     std::vector<Matrix> dSdUm_tables;

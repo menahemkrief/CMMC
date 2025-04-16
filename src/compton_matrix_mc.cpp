@@ -284,8 +284,6 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
         }
     }
 
-    if (force_detailed_balance) set_Bg_ng(temperature);
-
     double const x = (temperature-temperature_grid[tmp_i])/(temperature_grid[tmp_i+1]-temperature_grid[tmp_i]);
     for (std::size_t i = 0; i < num_energy_groups; ++i) {
         for (std::size_t j=0; j < num_energy_groups; ++j) {
