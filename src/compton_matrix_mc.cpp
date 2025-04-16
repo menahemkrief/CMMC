@@ -16,6 +16,7 @@ ComptonMatrixMC::ComptonMatrixMC(
     std::size_t const num_of_samples_,
     bool const force_detailed_balance_,
     std::optional<unsigned int> const seed_) :
+
     energy_groups_centers(energy_groups_centers_),
     energy_groups_boundries(energy_groups_boundries_),
     num_energy_groups(energy_groups_centers.size()),
@@ -32,11 +33,13 @@ ComptonMatrixMC::ComptonMatrixMC(
     S_temp(num_energy_groups, Vector(num_energy_groups, signaling_NaN)),
     n_eq(num_energy_groups, signaling_NaN),
     B(num_energy_groups, signaling_NaN) {
+    
     printf("Generating a ComptonMatrixMC object... seed=%d\n", seed);
     if (num_energy_groups + 1 != energy_groups_boundries.size()) {
         printf("ComptonMatrixMC fatal - inconsistent number of energy group boundaries and centers\n");
         exit(1);
     }
+    
     for (std::size_t g=0; g<num_energy_groups; ++g) {
         if (energy_groups_boundries[g]   < 0. or
             energy_groups_boundries[g]   >= energy_groups_boundries[g+1] or
