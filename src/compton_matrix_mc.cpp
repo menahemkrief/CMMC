@@ -74,7 +74,7 @@ ComptonMatrixMC::ComptonMatrixMC(
     set_tables(compton_temperatures);
 }
 
-double ComptonMatrixMC::sample_gamma(double const temperature) {
+double ComptonMatrixMC::sample_gamma(double const temperature) const {
 
     double const theta = units::k_boltz * temperature / units::me_c2;
     double const sum_1_bt = 1.0 + 1.0 / theta;

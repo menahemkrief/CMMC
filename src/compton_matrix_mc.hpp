@@ -96,7 +96,7 @@ public:
      * @param temperature the given temperature [K]
      * @return double the sampled value of gamma
      */
-    double sample_gamma(double const temperature);
+    double sample_gamma(double const temperature) const;
 
     // Getters
     Vector get_compton_temperatures() const { return compton_temperatures; }
@@ -139,7 +139,7 @@ private:
     std::size_t const num_of_samples; // number of samples of the Monte Carlo integration
 
     unsigned int const seed;
-    boost::random::variate_generator<boost::random::mt19937, boost::random::uniform_01<>> sample_uniform_01;
+    mutable boost::random::variate_generator<boost::random::mt19937, boost::random::uniform_01<>> sample_uniform_01;
 
     // tabulation
     std::vector<Matrix> S_tables;
