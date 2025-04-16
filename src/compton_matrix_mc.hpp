@@ -21,6 +21,7 @@ public:
      * @param seed_ - if given non-negative value - sets the seed of the random number generator - to enable bit-by-bit reproducible results.
      */
     ComptonMatrixMC(
+        Vector const compton_temperatures_,
         Vector const energy_groups_centers_,
         Vector const energy_groups_boundries_,
         std::size_t const num_of_samples_,
@@ -35,15 +36,6 @@ public:
      * @return Matrix the microscopic Compton scattering matrix [cm^2]
      */
     Matrix calculate_S_matrix(double const temperature);
-
-    /**
-     * @brief Given a set of temperatures, calculates and store the S matrices, so
-     * that tau matrices can be calculated for other temperatures using interpolation between
-     * the given temperatures (using the `get_tau_matrix` functions).
-     * @param temperature_grid - a set of temperatures [K]
-     * @return * void
-     */
-    void set_tables(std::vector<double> const& temperature_grid_);
 
     /**
      * @brief Get the Compton tau matrix - which is the macroscopic cross secion for Compton scattering
@@ -70,6 +62,15 @@ public:
     double sample_gamma(double const temperature);
 
 private:
+    /**
+     * @brief Given a set of temperatures, calculates and store the S matrices, so
+     * that tau matrices can be calculated for other temperatures using interpolation between
+     * the given temperatures (using the `get_tau_matrix` functions).
+     * @param temperature_grid - a set of temperatures [K]
+     * @return * void
+     */
+    void set_tables(std::vector<double> const& temperature_grid_);
+
     /*!
     @brief force detailed balance at `temperature` for `mat`
     @param temperature at which to force detailed balance
@@ -82,7 +83,8 @@ private:
     @param temperature the temperature for the planckian
     */
     void calculate_Bg_ng(double const temperature);
-
+    
+    Vector const compton_temperatures;
     Vector const energy_groups_centers;
     Vector const energy_groups_boundries;
     std::size_t const num_energy_groups;

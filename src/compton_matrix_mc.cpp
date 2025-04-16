@@ -14,11 +14,13 @@ namespace machine_limits {
 }
 
 ComptonMatrixMC::ComptonMatrixMC(
+    Vector const compton_temperatures_,
     Vector const energy_groups_centers_,
     Vector const energy_groups_boundries_,
     std::size_t const num_of_samples_,
     std::optional<unsigned int> const seed_) :
 
+    compton_temperatures(compton_temperatures_),  
     energy_groups_centers(energy_groups_centers_),
     energy_groups_boundries(energy_groups_boundries_),
     num_energy_groups(energy_groups_centers.size()),
@@ -56,6 +58,8 @@ ComptonMatrixMC::ComptonMatrixMC(
         printf("%g ", e/units::kev);
     }
     printf("\n");
+
+    set_tables(compton_temperatures);
 }
 
 double ComptonMatrixMC::sample_gamma(double const temperature) {
