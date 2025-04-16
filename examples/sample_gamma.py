@@ -22,11 +22,7 @@ def MJ(x_MJ, theta_MJ):
 T = 2.0*units.me_c2 / units.k_boltz
 theta = units.k_boltz * T / units.me_c2
 
-tau_generator = ComptonMatrixMC(energy_groups_centers=[0.0], energy_groups_boundaries=[0.0], num_of_samples=10000, force_detailed_balance=True)
-
-print(f"temperature = {T:.3e}")
-print(f"theta = {theta}")
-
+tau_generator = ComptonMatrixMC(compton_temperatures=[1.0, 2.0], energy_groups_centers=[0.1], energy_groups_boundaries=[0.0, 0.2], num_of_samples=10000)
 
 x = np.linspace(1.0, 20.0, 1000)
 y = P(x_P=x, theta_P=theta)
