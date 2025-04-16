@@ -190,7 +190,7 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature) {
 
             weight[g0] += w_E0;
 
-            // step 8b: calculate E
+            // step 8b: calculate the energy of photon after scattering in the lab frame
             double const E0_tag = D0*E0; // energy of photon before scattering in the electron rest frame
             double const A = 1. / (1. + (1. - mu_s_tag)*E0_tag / units::me_c2);
 
