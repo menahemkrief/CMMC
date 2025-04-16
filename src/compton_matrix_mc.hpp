@@ -92,7 +92,7 @@ public:
 
     /**
      * @brief Sample from the distribution A*gamma^2e^(-gamma/theta)
-     * where theta=kB T / m_e * c^2
+     * where theta=kB T / m_e * c^2, taken from C.J. Everett, E. D. Cashwell "A Monte Carlo Sampler" procedure C47.
      * @param temperature the given temperature [K]
      * @return double the sampled value of gamma
      */
