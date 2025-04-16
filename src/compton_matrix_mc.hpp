@@ -60,7 +60,7 @@ public:
      * @return double the sampled value of gamma
      */
     double sample_gamma(double const temperature);
-    
+
     // Getters
     Vector get_compton_temperatures() const { return compton_temperatures; }
     Vector get_energy_groups_centers() const { return energy_groups_centers; }
@@ -92,7 +92,7 @@ private:
     @param temperature the temperature for the planckian
     */
     void calculate_Bg_ng(double const temperature);
-    
+
     Vector const compton_temperatures; // temperature grid for the compston tables
 
     Vector const energy_groups_centers;
@@ -103,8 +103,8 @@ private:
 
     unsigned int const seed;
     boost::random::variate_generator<boost::random::mt19937, boost::random::uniform_01<>> sample_uniform_01;
-    
-    Vector temperature_grid;
+
+    // tabulation
     std::vector<Matrix> S_tables;
     std::vector<Matrix> dSdUm_tables;
 
