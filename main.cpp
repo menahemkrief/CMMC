@@ -36,7 +36,7 @@ int main(){
         temp *= units::kev_kelvin;
     }
     
-    auto compton_engine = ComptonMatrixMC(temperature_grid, energy_groups_centers, energy_groups_boundries, 200000, 0);
+    auto compton_engine = compton_matrix_mc::ComptonMatrixMC(temperature_grid, energy_groups_centers, energy_groups_boundries, 200000, 0);
 
     // double const T = 2.0*units::me_c2 / units::k_boltz;
     double constexpr T = 10.0*units::kev_kelvin;
