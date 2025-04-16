@@ -18,14 +18,12 @@ public:
      * @param energy_groups_centers_ - centers of energy groups [erg] (does not have to be the arithmetic center).
      * @param energy_groups_boundries_ - groups boundaries [erg]
      * @param num_of_samples_ - number of Monet carlo samples for the integration.
-     * @param force_detailed_balance_ - whether or not force detailed balance.
      * @param seed_ - if given non-negative value - sets the seed of the random number generator - to enable bit-by-bit reproducible results.
      */
     ComptonMatrixMC(
         Vector const energy_groups_centers_,
         Vector const energy_groups_boundries_,
         std::size_t const num_of_samples_,
-        bool const force_detailed_balance_,
         std::optional<unsigned int> const seed_=std::nullopt);
 
     /**
@@ -72,7 +70,18 @@ public:
     double sample_gamma(double const temperature);
 
 private:
-    void set_Bg_ng(double const);
+    /*!
+    @brief force detailed balance at `temperature` for `mat`
+    @param temperature at which to force detailed balance
+    @param mat matrix on which to force detailed balance
+    */
+    void enforce_detailed_balance(double const temperature, Matrix& mat);
+
+    /*!
+    @brief calculates the planck integrals per group `Bg` and the equilibrium occupancy number `n_eq`
+    @param temperature the temperature for the planckian
+    */
+    void calculate_Bg_ng(double const temperature);
 
     Vector const energy_groups_centers;
     Vector const energy_groups_boundries;

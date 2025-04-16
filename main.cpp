@@ -31,7 +31,7 @@ int main(){
     Vector energy_groups_centers;
     for(std::size_t g=0; g<energy_groups_boundries.size()-1;++g) energy_groups_centers.push_back(0.5*(energy_groups_boundries[g]+energy_groups_boundries[g+1]));
     
-    auto compton_engine = ComptonMatrixMC(energy_groups_centers, energy_groups_boundries, 200000, true, 0);
+    auto compton_engine = ComptonMatrixMC(energy_groups_centers, energy_groups_boundries, 200000, 0);
 
     // double const T = 2.0*units::me_c2 / units::k_boltz;
     double constexpr T = 10.0*units::kev_kelvin;

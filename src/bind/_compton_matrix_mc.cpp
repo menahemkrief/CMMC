@@ -10,13 +10,11 @@ void bind_compton_matrix_mc(pybind11::module& m) {
         .def(pybind11::init<std::vector<double> const,
             std::vector<double> const,
             std::size_t const,
-            bool const,
             int const>(),
             pybind11::kw_only(),
             "energy_groups_centers"_a,
             "energy_groups_boundaries"_a,
             "num_of_samples"_a,
-            "force_detailed_balance"_a,
             "seed"_a=-1)
         .def("sample_gamma",       &ComptonMatrixMC::sample_gamma,       pybind11::kw_only(), "temperature"_a)
         .def("calculate_S_matrix", &ComptonMatrixMC::calculate_S_matrix, pybind11::kw_only(), "temperature"_a)
