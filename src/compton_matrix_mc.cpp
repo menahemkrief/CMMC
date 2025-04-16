@@ -52,9 +52,9 @@ ComptonMatrixMC::ComptonMatrixMC(
         }
     }
 
-    printf("Compton matrices defined on %ld groups.\nPhoton energy group boundaries (in kev) \n", num_energy_groups);
+    printf("Compton matrices defined on %ld groups.\nPhoton energy group boundaries (in KeV) \n", num_energy_groups);
     for (auto const e : energy_groups_boundries) {
-        printf("%g ", e/units::kev);
+        printf("%g KeV, ", e/units::kev);
     }
     printf("\n");
 
@@ -218,9 +218,9 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid) {
         printf("Compton temperature grid has less than two temperature points - %ld\n", temperature_grid.size());
         exit(1);
     }
-    printf("setting Compton matrix tables for %ld temperatures (in kev):\n", temperature_grid.size());
+    printf("Setting Compton matrix tables for %ld temperatures (in KeV):\n", temperature_grid.size());
     for (std::size_t i=0; i<temperature_grid.size(); ++i) {
-        printf("%g ", temperature_grid[i]/units::kev_kelvin);
+        printf("%g KeV, ", temperature_grid[i]/units::kev_kelvin);
         if (i>0 and temperature_grid[i]<=temperature_grid[i-1]) {
             printf("fatal - Compton temperature grid is not monotonic\n");
             exit(1);
