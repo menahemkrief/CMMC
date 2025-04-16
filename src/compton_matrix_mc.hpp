@@ -7,6 +7,8 @@
 using Vector = std::vector<double>;
 using Matrix = std::vector<std::vector<double>>;
 
+namespace compton_matrix_mc {
+
 class ComptonMatrixMC {
 public:
     /**
@@ -149,4 +151,5 @@ private:
     std::vector<double> B; // temporary array to avoid repeated allocations, group energy density at equilibrium (i.e. the integral on the planck function)
 };
 
+} // namespace compton_matrix_mc
 #endif

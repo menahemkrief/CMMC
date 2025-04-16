@@ -8,9 +8,11 @@
 
 #include <boost/math/special_functions/pow.hpp>
 
+namespace compton_matrix_mc {
+
 namespace machine_limits {
-    static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_NaN();
-    static double constexpr min_double = 1024.*std::numeric_limits<double>::min();
+static double constexpr signaling_NaN = std::numeric_limits<double>::signaling_NaN();
+static double constexpr min_double = 1024.*std::numeric_limits<double>::min();
 }
 
 ComptonMatrixMC::ComptonMatrixMC(
@@ -20,7 +22,7 @@ ComptonMatrixMC::ComptonMatrixMC(
     std::size_t const num_of_samples_,
     std::optional<unsigned int> const seed_) :
 
-    compton_temperatures(compton_temperatures_),  
+    compton_temperatures(compton_temperatures_),
     energy_groups_centers(energy_groups_centers_),
     energy_groups_boundries(energy_groups_boundries_),
     num_energy_groups(energy_groups_centers.size()),
@@ -35,7 +37,7 @@ ComptonMatrixMC::ComptonMatrixMC(
     S_temp(num_energy_groups, Vector(num_energy_groups, machine_limits::signaling_NaN)),
     n_eq(num_energy_groups, machine_limits::signaling_NaN),
     B(num_energy_groups, machine_limits::signaling_NaN) {
-    
+
     printf("Generating a ComptonMatrixMC object... seed=%d\n", seed);
     if (num_energy_groups + 1 != energy_groups_boundries.size()) {
         printf("ComptonMatrixMC fatal - inconsistent number of energy group boundaries and centers\n");
@@ -302,7 +304,7 @@ Matrix ComptonMatrixMC::get_tau_matrix(double const temperature, double const de
     return tau;
 }
 
-void ComptonMatrixMC::get_dtau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& dtau_dT){
+void ComptonMatrixMC::get_dtau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& dtau_dT) {
     auto const tmp_iterator = std::lower_bound(compton_temperatures.cbegin(), compton_temperatures.cend(), temperature);
     auto const tmp_i = std::distance(compton_temperatures.cbegin(), tmp_iterator) - 1; //  gives the index of lower bound of the temperature in the temperature grid
 
@@ -347,21 +349,21 @@ Matrix ComptonMatrixMC::get_dtau_matrix(double const temperature, double const d
     return dtau;
 }
 
-void ComptonMatrixMC::enforce_detailed_balance(double const temperature, Matrix& mat){
+void ComptonMatrixMC::enforce_detailed_balance(double const temperature, Matrix& mat) {
     calculate_Bg_ng(temperature);
-    for(std::size_t g=0; g<num_energy_groups; ++g){
+    for (std::size_t g=0; g<num_energy_groups; ++g) {
         double const E_g = energy_groups_centers[g];
-        
-        for(std::size_t gt=0; gt < g; ++gt){ // notice it is gt < *g*
-            
-            if(B[gt] < machine_limits::min_double){
+
+        for (std::size_t gt=0; gt < g; ++gt) { // notice it is gt < *g*
+
+            if (B[gt] < machine_limits::min_double) {
                 mat[g][gt] = 0.0;
                 mat[gt][g] = 0.0;
             } else {
                 double const E_gt = energy_groups_centers[gt];
                 double const detailed_balance_factor = (1.0+n_eq[gt])*B[g]*E_gt / ((1.0+n_eq[g])*B[gt]*E_g);
 
-                if(detailed_balance_factor < 1.0) {
+                if (detailed_balance_factor < 1.0) {
                     mat[gt][g] = mat[g][gt]*detailed_balance_factor;
                 } else {
                     mat[g][gt] = mat[gt][g]/detailed_balance_factor;
@@ -370,3 +372,5 @@ void ComptonMatrixMC::enforce_detailed_balance(double const temperature, Matrix&
         }
     }
 }
+
+} // namespace compton_matrix_mc

@@ -3,6 +3,8 @@
 
 #include "../compton_matrix_mc.hpp"
 
+namespace compton_matrix_mc {
+
 void bind_compton_matrix_mc(pybind11::module& m) {
     using namespace pybind11::literals;
 
@@ -25,8 +27,10 @@ void bind_compton_matrix_mc(pybind11::module& m) {
         ;
 }
 
+} // namespace compton_matrix_mc
+
 PYBIND11_MODULE(_compton_matrix_mc, m) {
     m.doc() = "Compton Matrix Monte Carlo c++ module";
 
-    bind_compton_matrix_mc(m);
+    compton_matrix_mc::bind_compton_matrix_mc(m);
 }
