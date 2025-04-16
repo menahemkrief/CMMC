@@ -21,6 +21,7 @@ void bind_compton_matrix_mc(pybind11::module& m) {
         .def("sample_gamma",       &ComptonMatrixMC::sample_gamma,       pybind11::kw_only(), "temperature"_a)
         .def("calculate_S_matrix", &ComptonMatrixMC::calculate_S_matrix, pybind11::kw_only(), "temperature"_a)
         .def("get_tau_matrix",  pybind11::overload_cast<double const, double const, double const, double const>(&ComptonMatrixMC::get_tau_matrix), pybind11::kw_only(), "temperature"_a, "density"_a, "A"_a, "Z"_a)
+        .def("get_dtau_matrix", pybind11::overload_cast<double const, double const, double const, double const>(&ComptonMatrixMC::get_dtau_matrix), pybind11::kw_only(), "temperature"_a, "density"_a, "A"_a, "Z"_a)
         ;
 }
 
