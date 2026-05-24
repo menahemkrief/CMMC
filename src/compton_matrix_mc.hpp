@@ -5,6 +5,8 @@
 
 using Vector = std::vector<double>;
 using Matrix = std::vector<std::vector<double>>;
+using AngleCdf = std::vector<double>;
+using AngleMatrix = std::vector<std::vector<AngleCdf>>;
 
 class ComptonMatrixMC {
     public:
@@ -89,6 +91,21 @@ class ComptonMatrixMC {
 
        std::pair<double, double> get_last_group_upscattering_and_downscattering(double const temperature, double const density, double const A, double const Z);
 
+       /**
+        * @brief Get the angular CDF for a Compton scattering transition g0 -> g
+        * at the given temperature, by interpolation on the temperature grid.
+        * The CDF has NUM_ANGLE_BINS+1 entries at uniformly spaced cos(theta) bin edges
+        * from -1 to +1. CDF[i] = P(cos_theta_scat < -1 + 2*i/NUM_ANGLE_BINS).
+        *
+        * @param temperature electron temperature [K]
+        * @param g0 incoming energy group index
+        * @param g outgoing energy group index
+        * @param cdf output CDF vector (resized to NUM_ANGLE_BINS+1)
+        */
+       void get_angle_cdf(double temperature, std::size_t g0, std::size_t g, std::vector<double>& cdf) const;
+
+       static constexpr std::size_t NUM_ANGLE_BINS = 32;
+
     private:
         void set_Bg_ng(double const);
         
@@ -117,6 +134,11 @@ class ComptonMatrixMC {
 
         std::vector<double> up_scattering_last_table;
         std::vector<double> down_scattering_last_table;
+
+        // Angular CDF tables: [temp_idx][g0][g] = CDF with NUM_ANGLE_BINS+1 values
+        std::vector<AngleMatrix> angle_cdf_tables;
+        // Temporary histogram filled by calculate_S_and_dSdUm_matrices
+        AngleMatrix angle_histogram_temp;
 };
 
 #endif
