@@ -11,17 +11,21 @@ void bind_compton_matrix_mc(pybind11::module& m){
                         std::vector<double> const,
                         std::size_t const,
                         bool const,
-                        int const>(),
+                        int const,
+                        bool const>(),
                         pybind11::kw_only(),
                         "energy_groups_centers"_a,
                         "energy_groups_boundaries"_a,
                         "num_of_samples"_a,
                         "force_detailed_balance"_a,
-                        "seed"_a=-1)
+                        "seed"_a=-1,
+                        "use_energy_redistribution"_a=false)
     .def("sample_gamma",       &ComptonMatrixMC::sample_gamma,       pybind11::kw_only(), "temperature"_a)
     .def("calculate_S_matrix", &ComptonMatrixMC::calculate_S_matrix, pybind11::kw_only(), "temperature"_a)
     .def("set_tables",         &ComptonMatrixMC::set_tables,         pybind11::kw_only(), "temperature_grid"_a)
     .def("get_tau_matrix",     pybind11::overload_cast<double const, double const, double const, double const>(&ComptonMatrixMC::get_tau_matrix), pybind11::kw_only(), "temperature"_a, "density"_a, "A"_a, "Z"_a)
+    .def("get_angle_cdf",      &ComptonMatrixMC::get_angle_cdf, pybind11::kw_only(), "temperature"_a, "g0"_a, "g"_a)
+    .def_property_readonly_static("NUM_ANGLE_BINS", [](pybind11::object){ return ComptonMatrixMC::NUM_ANGLE_BINS; })
     ;
 }
 

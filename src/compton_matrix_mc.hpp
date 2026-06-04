@@ -5,6 +5,8 @@
 
 using Vector = std::vector<double>;
 using Matrix = std::vector<std::vector<double>>;
+using AngleCdf = std::vector<double>;
+using AngleMatrix = std::vector<std::vector<AngleCdf>>;
 
 class ComptonMatrixMC {
     public:
@@ -19,13 +21,15 @@ class ComptonMatrixMC {
      * @param num_of_samples_ - number of Monet carlo samples for the integration.
      * @param force_detailed_balance_ - whether or not force detailed balance.
      * @param seed_ - if given non-negative value - sets the seed of the random number generator - to enable bit-by-bit reproducible results.
+     * @param use_energy_redistribution_ - when true, redistribute off-diagonal MC contributions using linear energy-transfer weighting.
      */
         ComptonMatrixMC(
             Vector const energy_groups_centers_, 
             Vector const energy_groups_boundries_, 
             std::size_t const num_of_samples_, 
             bool const force_detailed_balance_,
-            int const seed_=-1);
+            int const seed_=-1,
+            bool const use_energy_redistribution_=false);
 
         /**
          * @brief Calculates the *microscopic* Compton scattering matrix at
@@ -69,19 +73,36 @@ class ComptonMatrixMC {
         * @return double the sampled value of gamma
         */
        double sample_gamma(double const temperature);
-    
+
+       /**
+        * @brief Get the angular CDF for a Compton scattering transition g0 -> g
+        * at the given temperature, by interpolation on the temperature grid.
+        * The CDF has NUM_ANGLE_BINS+1 entries at uniformly spaced cos(theta) bin edges
+        * from -1 to +1. CDF[i] = P(cos_theta_scat < -1 + 2*i/NUM_ANGLE_BINS).
+        *
+        * @param temperature electron temperature [K]
+        * @param g0 incoming energy group index
+        * @param g outgoing energy group index
+        * @return std::vector<double> CDF vector of size NUM_ANGLE_BINS+1
+        */
+       std::vector<double> get_angle_cdf(double temperature, std::size_t g0, std::size_t g) const;
+
+       static constexpr std::size_t NUM_ANGLE_BINS = 32;
+
     private:
         void set_Bg_ng(double const);
         
         Vector const energy_groups_centers;
         Vector const energy_groups_boundries;
+        Vector energy_groups_width;
         std::size_t const num_energy_groups;
         
         std::size_t const num_of_samples;
         unsigned int const seed;
-        boost::random::variate_generator<boost::random::mt19937, boost::random::uniform_01<>> sample_uniform_01;
+        boost::random::variate_generator<boost::random::mt19937_64, boost::random::uniform_01<>> sample_uniform_01;
 
         bool const force_detailed_balance;
+        bool const use_energy_redistribution;
 
         // tabulation
         Vector temperature_grid;
@@ -92,6 +113,10 @@ class ComptonMatrixMC {
         Matrix S_temp;
         std::vector<double> n_eq;
         std::vector<double> B;
+
+        // angular CDF tables: [temp_idx][g0][g] = CDF with NUM_ANGLE_BINS+1 values
+        std::vector<AngleMatrix> angle_cdf_tables;
+        AngleMatrix angle_histogram_temp;
 };
 
 #endif

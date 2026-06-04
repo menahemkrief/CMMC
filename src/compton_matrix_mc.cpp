@@ -14,17 +14,20 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                                  Vector const energy_groups_boundries_, 
                                  std::size_t const num_of_samples_, 
                                  bool const force_detailed_balance_,
-                                 int const seed_) :
+                                 int const seed_,
+                                 bool const use_energy_redistribution_) :
                             energy_groups_centers(energy_groups_centers_),
                             energy_groups_boundries(energy_groups_boundries_),
+                            energy_groups_width(energy_groups_centers_.size(), 0.0),
                             num_energy_groups(energy_groups_centers.size()),
                             num_of_samples(num_of_samples_), 
                             seed(seed_ >= 0 ? seed_ : static_cast<unsigned int>(std::time(0))),
                             sample_uniform_01(
-                                boost::random::mt19937(seed),
+                                boost::random::mt19937_64(seed),
                                 boost::random::uniform_01<>()
                             ),
                             force_detailed_balance(force_detailed_balance_),
+                            use_energy_redistribution(use_energy_redistribution_),
                             temperature_grid(),
                             S_log_tables(),
                             dSdUm_tables(),
@@ -50,7 +53,11 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
     for(auto const e : energy_groups_boundries){
         printf("%g ", e/units::kev);
     }
-    printf("\n");    
+    printf("\n");
+
+    for(std::size_t g=0; g < num_energy_groups; ++g){
+        energy_groups_width[g] = energy_groups_boundries[g+1] - energy_groups_boundries[g];
+    }
 }
 
 double ComptonMatrixMC::sample_gamma(double const temperature){
@@ -101,6 +108,9 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
         }
     }
 
+    angle_histogram_temp.assign(num_energy_groups,
+        std::vector<AngleCdf>(num_energy_groups, AngleCdf(NUM_ANGLE_BINS, 0.0)));
+
     double sum_beta = 0.0;
     std::vector<double> const Omega_0(3., 0.);
     std::vector<double> Omega_0_tag(3., 0.), Omega_e(3., 0.), Omega_tag(3., 0.), Omega_p_tag(3., 0.);
@@ -147,8 +157,15 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
         Omega_tag[2] = -Omega_0_tag[0]*Omega_p_tag[0] + Omega_0_tag[2]*Omega_p_tag[2];
 
         // step 7 
-        double const D_tag = gamma*(1. + beta*(Omega_tag[0]*Omega_e[0] + Omega_tag[2]*Omega_e[2]));
-        
+        double const dot_Omega_tag_e = Omega_tag[0]*Omega_e[0] + Omega_tag[2]*Omega_e[2];
+        double const D_tag = gamma*(1. + beta*dot_Omega_tag_e);
+
+        // lab-frame scattering cosine (incoming photon along z)
+        double mu_scat_lab = (Omega_tag[2] + ((gamma - 1.0)*dot_Omega_tag_e + gamma*beta)*Omega_e[2]) / D_tag;
+        mu_scat_lab = std::max(-1.0, std::min(1.0, mu_scat_lab));
+        int const angle_bin = std::min(static_cast<int>((mu_scat_lab + 1.0) * 0.5 * NUM_ANGLE_BINS),
+                                       static_cast<int>(NUM_ANGLE_BINS) - 1);
+
         // step 8: sample the energy groups 
         double const interp = sample_uniform_01();
         for(std::size_t g0=0; g0<num_energy_groups; ++g0){
@@ -159,7 +176,7 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
             double const E0 = boundry_g0 + interp*width;
             // weight of energy sample
             double const a = (E0-boundry_g0)/(units::k_boltz*temperature);
-            double const w_E0 = (E0*E0)/(boundry_g0*boundry_g0)*std::exp(-a);
+            double const w_E0 = (E0*E0*E0)/(boundry_g0*boundry_g0*boundry_g0)*std::exp(-a);
 
             weight[g0] += w_E0;
             
@@ -179,12 +196,15 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
             // step 8d: calcualte the cross section contribution
             double const sigma = 0.75 * D0/gamma * A*A*(A + 1./A - sin_p_tag*sin_p_tag)*w_E0*beta;
             
-            if(g0 == static_cast<std::size_t>(g)){
+            if (!use_energy_redistribution || g0 == static_cast<std::size_t>(g)) {
+                angle_histogram_temp[g0][g][angle_bin] += sigma;
                 S_temp[g0][g] += sigma;
             } else {
-                double const fac = (E-E0)/(energy_groups_centers[g]-energy_groups_centers[g0]);
-                S_temp[g0][g] += sigma*fac;
-                S_temp[g0][g0] += sigma*(1.0-fac);
+                double const fac = (E - E0) / (energy_groups_centers[g] - energy_groups_centers[g0]);
+                angle_histogram_temp[g0][g][angle_bin]  += sigma * fac;
+                angle_histogram_temp[g0][g0][angle_bin] += sigma * (1.0 - fac);
+                S_temp[g0][g]  += sigma * fac;
+                S_temp[g0][g0] += sigma * (1.0 - fac);
             }
         }    
     }
@@ -250,12 +270,38 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
     temperature_grid = temperature_grid_;
     S_log_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
     dSdUm_tables = std::vector<Matrix>(temperature_grid.size(), Matrix(num_energy_groups, Vector(num_energy_groups, 0.0)));
-    
+
+    AngleCdf uniform_cdf(NUM_ANGLE_BINS + 1);
+    for(std::size_t b = 0; b <= NUM_ANGLE_BINS; ++b)
+        uniform_cdf[b] = static_cast<double>(b) / static_cast<double>(NUM_ANGLE_BINS);
+    angle_cdf_tables.resize(temperature_grid.size(),
+        AngleMatrix(num_energy_groups,
+            std::vector<AngleCdf>(num_energy_groups, uniform_cdf)));
+
     for(std::size_t i=0; i < temperature_grid.size(); ++i){
+        angle_histogram_temp.assign(num_energy_groups,
+            std::vector<AngleCdf>(num_energy_groups, AngleCdf(NUM_ANGLE_BINS, 0.0)));
+
         S_log_tables[i] = calculate_S_matrix(temperature_grid[i]);
+
         for(std::size_t g0=0; g0 < num_energy_groups; ++g0){
             for(std::size_t g=0; g < num_energy_groups; ++g){
                 S_log_tables[i][g0][g] = std::log(S_log_tables[i][g0][g]);
+
+                double total = 0.0;
+                for(std::size_t b = 0; b < NUM_ANGLE_BINS; ++b)
+                    total += angle_histogram_temp[g0][g][b];
+
+                AngleCdf& cdf = angle_cdf_tables[i][g0][g];
+                cdf[0] = 0.0;
+                if(total > 0.0){
+                    for(std::size_t b = 0; b < NUM_ANGLE_BINS; ++b)
+                        cdf[b + 1] = cdf[b] + angle_histogram_temp[g0][g][b] / total;
+                } else {
+                    for(std::size_t b = 0; b < NUM_ANGLE_BINS; ++b)
+                        cdf[b + 1] = static_cast<double>(b + 1) / static_cast<double>(NUM_ANGLE_BINS);
+                }
+                cdf[NUM_ANGLE_BINS] = 1.0;
             }
         }
     }
@@ -274,6 +320,8 @@ void ComptonMatrixMC::set_tables(std::vector<double> const& temperature_grid_){
             }
         }
     }
+    if(temperature_grid.size() >= 2)
+        dSdUm_tables.back() = dSdUm_tables[temperature_grid.size() - 2];
 }
 
 void ComptonMatrixMC::get_tau_matrix(double const temperature, double const density, double const A, double const Z, Matrix& tau, Matrix& dtau_dUm){
@@ -339,7 +387,9 @@ void ComptonMatrixMC::get_tau_matrix(double const temperature, double const dens
     }
 
     double const Nelectron = density*units::Navogadro/A*Z;
-    dtau_dUm = dSdUm_tables[tmp_i];
+    for(std::size_t i=0; i < num_energy_groups; ++i)
+        for(std::size_t j=0; j < num_energy_groups; ++j)
+            dtau_dUm[i][j] = dSdUm_tables[tmp_i][i][j]*(1.0 - x) + dSdUm_tables[tmp_i+1][i][j]*x;
     for(std::size_t i=0; i<num_energy_groups; ++i){
         for(std::size_t j=0; j<num_energy_groups; ++j){
             tau[i][j] *= Nelectron;
@@ -355,4 +405,36 @@ Matrix ComptonMatrixMC::get_tau_matrix(double const temperature, double const de
     get_tau_matrix(temperature, density, A, Z, tau, dtau);
 
     return tau;
+}
+
+std::vector<double> ComptonMatrixMC::get_angle_cdf(double const temperature, std::size_t const g0, std::size_t const g) const {
+    std::vector<double> cdf(NUM_ANGLE_BINS + 1);
+
+    if(angle_cdf_tables.empty()){
+        for(std::size_t b = 0; b <= NUM_ANGLE_BINS; ++b)
+            cdf[b] = static_cast<double>(b) / static_cast<double>(NUM_ANGLE_BINS);
+        return cdf;
+    }
+
+    auto const tmp_iterator = std::lower_bound(temperature_grid.cbegin(), temperature_grid.cend(), temperature);
+    auto tmp_i = std::distance(temperature_grid.cbegin(), tmp_iterator) - 1;
+
+    if(tmp_i + 1 >= static_cast<long>(temperature_grid.size()))
+        tmp_i = static_cast<long>(temperature_grid.size()) - 2;
+    if(tmp_i < 0)
+        tmp_i = 0;
+
+    double const x = (temperature - temperature_grid[tmp_i]) /
+                     (temperature_grid[tmp_i + 1] - temperature_grid[tmp_i]);
+    double const x_clamped = std::max(0.0, std::min(1.0, x));
+
+    AngleCdf const& cdf_lo = angle_cdf_tables[tmp_i][g0][g];
+    AngleCdf const& cdf_hi = angle_cdf_tables[tmp_i + 1][g0][g];
+
+    cdf[0] = 0.0;
+    for(std::size_t b = 1; b < NUM_ANGLE_BINS; ++b)
+        cdf[b] = cdf_lo[b] * (1.0 - x_clamped) + cdf_hi[b] * x_clamped;
+    cdf[NUM_ANGLE_BINS] = 1.0;
+
+    return cdf;
 }
