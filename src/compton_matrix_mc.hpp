@@ -22,6 +22,7 @@ class ComptonMatrixMC {
      * @param force_detailed_balance_ - whether or not force detailed balance.
      * @param seed_ - if given non-negative value - sets the seed of the random number generator - to enable bit-by-bit reproducible results.
      * @param use_energy_redistribution_ - when true, redistribute off-diagonal MC contributions using linear energy-transfer weighting.
+     * @param discard_out_of_grid_ - when true, scattered photons falling outside the energy grid are discarded instead of clamped to the nearest group.
      */
         ComptonMatrixMC(
             Vector const energy_groups_centers_, 
@@ -29,7 +30,8 @@ class ComptonMatrixMC {
             std::size_t const num_of_samples_, 
             bool const force_detailed_balance_,
             int const seed_=-1,
-            bool const use_energy_redistribution_=false);
+            bool const use_energy_redistribution_=false,
+            bool const discard_out_of_grid_=false);
 
         /**
          * @brief Calculates the *microscopic* Compton scattering matrix at
@@ -103,6 +105,7 @@ class ComptonMatrixMC {
 
         bool const force_detailed_balance;
         bool const use_energy_redistribution;
+        bool const discard_out_of_grid;
 
         // tabulation
         Vector temperature_grid;

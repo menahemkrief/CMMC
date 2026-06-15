@@ -15,7 +15,8 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                                  std::size_t const num_of_samples_, 
                                  bool const force_detailed_balance_,
                                  int const seed_,
-                                 bool const use_energy_redistribution_) :
+                                 bool const use_energy_redistribution_,
+                                 bool const discard_out_of_grid_) :
                             energy_groups_centers(energy_groups_centers_),
                             energy_groups_boundries(energy_groups_boundries_),
                             energy_groups_width(energy_groups_centers_.size(), 0.0),
@@ -28,6 +29,7 @@ ComptonMatrixMC::ComptonMatrixMC(Vector const energy_groups_centers_,
                             ),
                             force_detailed_balance(force_detailed_balance_),
                             use_energy_redistribution(use_energy_redistribution_),
+                            discard_out_of_grid(discard_out_of_grid_),
                             temperature_grid(),
                             S_log_tables(),
                             dSdUm_tables(),
@@ -175,8 +177,10 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
 
             double const E0 = boundry_g0 + interp*width;
             // weight of energy sample
-            double const a = (E0-boundry_g0)/(units::k_boltz*temperature);
-            double const w_E0 = (E0*E0*E0)/(boundry_g0*boundry_g0*boundry_g0)*std::exp(-a);
+            double const x = E0 / (units::k_boltz * temperature);
+            static double constexpr cap_x = 25.0;
+            static double const w0 = cap_x * cap_x * cap_x * std::exp(-cap_x);
+            double const w_E0 = (x < cap_x) ? (x * x * x * std::exp(-x)) : w0;
 
             weight[g0] += w_E0;
             
@@ -190,8 +194,13 @@ Matrix ComptonMatrixMC::calculate_S_matrix(double const temperature){
             auto g_iterator = std::lower_bound(energy_groups_boundries.begin(), energy_groups_boundries.end(), E);
             auto g = std::distance(energy_groups_boundries.begin(), g_iterator)-1; // gives the index of the energy group
 
-            g = std::max(0L, g);
-            g = std::min(static_cast<long>(energy_groups_centers.size())-1, g);
+            if (discard_out_of_grid) {
+                if (g < 0 || g >= static_cast<long>(num_energy_groups))
+                    continue;
+            } else {
+                g = std::max(0L, g);
+                g = std::min(static_cast<long>(num_energy_groups) - 1, g);
+            }
 
             // step 8d: calcualte the cross section contribution
             double const sigma = 0.75 * D0/gamma * A*A*(A + 1./A - sin_p_tag*sin_p_tag)*w_E0*beta;

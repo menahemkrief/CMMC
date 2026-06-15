@@ -12,6 +12,7 @@ void bind_compton_matrix_mc(pybind11::module& m){
                         std::size_t const,
                         bool const,
                         int const,
+                        bool const,
                         bool const>(),
                         pybind11::kw_only(),
                         "energy_groups_centers"_a,
@@ -19,7 +20,8 @@ void bind_compton_matrix_mc(pybind11::module& m){
                         "num_of_samples"_a,
                         "force_detailed_balance"_a,
                         "seed"_a=-1,
-                        "use_energy_redistribution"_a=false)
+                        "use_energy_redistribution"_a=false,
+                        "discard_out_of_grid"_a=false)
     .def("sample_gamma",       &ComptonMatrixMC::sample_gamma,       pybind11::kw_only(), "temperature"_a)
     .def("calculate_S_matrix", &ComptonMatrixMC::calculate_S_matrix, pybind11::kw_only(), "temperature"_a)
     .def("set_tables",         &ComptonMatrixMC::set_tables,         pybind11::kw_only(), "temperature_grid"_a)
