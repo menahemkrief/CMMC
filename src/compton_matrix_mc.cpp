@@ -219,7 +219,7 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
             double const E0 = boundry_g0 + interp*width;
             // weight of energy sample
             double const a = (E0-boundry_g0)/(units::k_boltz*temperature);
-            double const w_E0 = (E0*E0)/(boundry_g0*boundry_g0)*std::exp(-a);
+            double const w_E0 = (E0 * E0 *E0)/(boundry_g0*boundry_g0)*std::exp(-a);
 
             weight[g0] += w_E0;
             
@@ -255,11 +255,11 @@ void ComptonMatrixMC::calculate_S_and_dSdUm_matrices(double const temperature, M
                 double const fac = (E-E0)/(energy_groups_centers[g]-energy_groups_centers[g0]);
                 S[g0][g] += sigma*fac;
                 dSdUm[g0][g] += sigma*gamma*fac;
-                angle_histogram_temp[g0][g][angle_bin] += sigma*fac;
+                angle_histogram_temp[g0][g][angle_bin] += sigma;
 
                 S[g0][g0] += sigma*(1.0-fac);
                 dSdUm[g0][g0] += sigma*gamma*(1.0-fac);
-                angle_histogram_temp[g0][g0][angle_bin] += sigma*(1.0-fac);
+                // angle_histogram_temp[g0][g0][angle_bin] += sigma*(1.0-fac);
             }
         }    
     }
